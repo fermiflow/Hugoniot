@@ -1,0 +1,21 @@
+num: 4
+rs: 1.41
+T: 31250
+flow:
+  steps: 1
+  depth: 6
+  h1size: 16
+  h2size: 16
+  Nf: 5
+  remat: false
+batchsize: 64
+acc_steps: 2
+auto_save_time: 2024-11-07_20:18:55
+auto_save_path:
+  call_path: /home/lizh/hydrogen/cfgmanager/examples
+  cfg_path: /home/lizh/hydrogen/cfgmanager/examples/data/data1/004/config.yaml
+auto_save_git:
+  branch: main
+  hash: 15167b575b89673205cc276c4daf36d1d976333e
+  message: update examples names
+auto_save_cfgmanager_version: '0.3'

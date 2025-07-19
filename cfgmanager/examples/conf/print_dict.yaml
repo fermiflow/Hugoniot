@@ -1,0 +1,8 @@
+num: 4
+rs: 1.41
+T: 10000
+flow:
+  depth: 6
+  h1size: 16
+batchsize: 32
+acc_steps: 2

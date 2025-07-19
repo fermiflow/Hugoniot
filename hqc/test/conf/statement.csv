@@ -1,0 +1,20 @@
+name,type,default,help,choices
+mode,str,"""random_scf""",which kind of test,"""memory"", ""random_scf"", ""checkpoint_scf"", ""search_checkpoint"", ""search_random"""
+method,str,"""dft""",hf or dft,"""dft"", ""hf"""
+xc,str,"""lda,vwn""",xc functional,
+basis,str,"""gth-dzv""",basis set,
+rcut,float,24.0,cutoff radius in real space,
+batchsize,int,16,batchsize if test memory,
+batchid,int,0,"if test scf, which batch to test",
+num,int,14,num of particles,
+rs,float,2.0,rs,
+gridlength,float,0.12,grid length for integration in real space,
+diis,bool,True,if use diis,
+damp,float,0.0,damping,
+smearing,bool,True,if use smearing,
+smearing_method,str,"""fermi""",smearing method,"""fermi"""
+smearing_temperature,float,30000,"smearing temperature, Unit: Kelvin",
+pyscf,bool,True,if use pyscf to benchmark,
+jit,bool,True,if use jit,
+maxcycle,int,50,max cycle in scf method,
+tol,float,1e-7,"scf convergence tolerance ",

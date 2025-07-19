@@ -1,0 +1,12 @@
+num: 4
+rs: 1.41
+T: 31250
+flow:
+  steps: 1
+  depth: 6
+  h1size: 16
+  h2size: 16
+  Nf: 5
+  remat: False
+batchsize: 64
+acc_steps: 2

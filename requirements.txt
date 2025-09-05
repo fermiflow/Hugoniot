@@ -1,0 +1,10 @@
+jax
+jaxlib
+numpy
+scipy
+mpmath
+dm-haiku
+optax
+omegaconf
+pandas
+gitpython

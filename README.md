@@ -1,15 +1,13 @@
 # Hugoniot
-</a> 
-<a href="https://arxiv.org/abs/2507.18540"> 
-<img src="https://img.shields.io/badge/arXiv-2507.18540-b31b1b.svg" alt="arXiv:2507.18540"> 
-</a> 
-<a href="https://huggingface.co/datasets/Kelvin2025q/hugoniot"> 
-<img src="https://img.shields.io/badge/🤗-Hugging_Face-yellow" alt="Hugging Face"> 
-</a> 
+<a href="https://arxiv.org/abs/2507.18540">
+<img src="https://img.shields.io/badge/arXiv-2507.18540-b31b1b.svg" alt="arXiv:2507.18540">
+</a>
+<a href="https://huggingface.co/datasets/Kelvin2025q/hugoniot">
+<img src="https://img.shields.io/badge/🤗-Hugging_Face-yellow" alt="Hugging Face">
+</a>
 <img src="https://img.shields.io/badge/JAX-0.4+-orange" alt="JAX">
-</a> 
-<a href="./LICENSE"> 
-<img src="https://img.shields.io/badge/License-MIT-yellow.svg?color=green" alt="License"> 
+<a href="./LICENSE">
+<img src="https://img.shields.io/badge/License-MIT-yellow.svg?color=green" alt="License">
 </a>
 
 

@@ -1,4 +1,8 @@
 # Hugoniot
+<div align="center">
+<img src="logo.png" alt="logo"></img>
+</div>
+
 </a>
 <a href="https://arxiv.org/abs/2507.18540">
 <img src="https://img.shields.io/badge/arXiv-2507.18540-b31b1b.svg" alt="arXiv:2507.18540">

@@ -1,8 +1,8 @@
 # Hugoniot
 <div align="center">
-<img src="logo.png" alt="logo"></img>
+<img src="logo.png" alt="logo" width="160"></img>
 </div>
-
+<div align="center">
 </a>
 <a href="https://arxiv.org/abs/2507.18540">
 <img src="https://img.shields.io/badge/arXiv-2507.18540-b31b1b.svg" alt="arXiv:2507.18540">
@@ -16,6 +16,7 @@
 <a href="./LICENSE">
 <img src="https://img.shields.io/badge/License-MIT-yellow.svg?color=green" alt="License">
 </a>
+</div>
 
 Variational free energy method source code for hydrogen Hugoniot
 

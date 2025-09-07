@@ -58,7 +58,7 @@ python main.py \
 - Use `folder` parameter to specify the directory to save data and checkpoint files.
 
 ## Data
-
+Dataset including equation of states, training parameters, network checkpoints, nucleus and electron snapshots are published on [Hugging Face](https://huggingface.co/datasets/Kelvin2025q/hugoniot)
 
 ## Citation
 If you use this code in your research, please cite our article:

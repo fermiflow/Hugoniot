@@ -1,6 +1,6 @@
 # Hugoniot
 <div align="center">
-<img src="logo.png" alt="logo" width="160"></img>
+<img src="logo.png" alt="logo" width="360"></img>
 </div>
 <div align="center">
 </a>

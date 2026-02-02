@@ -7,6 +7,9 @@
 <a href="https://arxiv.org/abs/2507.18540">
 <img src="https://img.shields.io/badge/arXiv-2507.18540-b31b1b.svg" alt="arXiv:2507.18540">
 </a>
+<a href="https://link.aps.org/doi/10.1103/8zn5-6dnt">
+<img src="https://img.shields.io/badge/Phys._Rev._Lett.-10.1103/8zn5--6dnt-blue" alt="Physical Review Letters">
+</a>
 <a href="https://huggingface.co/datasets/Kelvin2025q/hugoniot">
 <img src="https://img.shields.io/badge/🤗-Hugging_Face-yellow" alt="Hugging Face">
 </a>
@@ -82,14 +85,16 @@ Dataset including equation of states, training parameters, network checkpoints, 
 ## Citation
 If you use this code in your research, please cite our article:
 ```
-@misc{li2025deepvariationalfreeenergy,
-      title={Deep Variational Free Energy Calculation of Hydrogen Hugoniot}, 
-      author={Zihang Li and Hao Xie and Xinyang Dong and Lei Wang},
-      year={2025},
-      eprint={2507.18540},
-      archivePrefix={arXiv},
-      primaryClass={cond-mat.str-el},
-      url={https://arxiv.org/abs/2507.18540}, 
+@article{8zn5-6dnt,
+  title = {Deep variational free energy calculation of hydrogen Hugoniot},
+  author = {Li, Zihang, Xie, Hao, Dong, Xinyang, and Wang, Lei},
+  journal = {Phys. Rev. Lett.},
+  pages = {--},
+  year = {2026},
+  month = {Jan},
+  publisher = {American Physical Society},
+  doi = {10.1103/8zn5-6dnt},
+  url = {https://link.aps.org/doi/10.1103/8zn5-6dnt}
 }
 ```
 

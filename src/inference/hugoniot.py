@@ -344,6 +344,10 @@ def eval_rho_P_hugoniot_lagrange_interpolation(E, E_std, P, P_std, EP_cov, rs):
     Output:
         rho_hugoniot: float, rho of hugoniot curve (H=0).
         rho_std_hugoniot: float, rho standard error of hugoniot curve.
+        P_hugoniot: float, pressure on Hugoniot curve.
+        P_std_hugoniot: float, pressure standard error on Hugoniot curve.
+        E_hugoniot: float, energy on Hugoniot curve.
+        E_std_hugoniot: float, energy standard error on Hugoniot curve.
     """
     if len(E) != len(E_std):
         raise ValueError("E and E_std must have the same length!")
@@ -359,8 +363,10 @@ def eval_rho_P_hugoniot_lagrange_interpolation(E, E_std, P, P_std, EP_cov, rs):
     rho = eval_rho_ratio(rs)
     H_lagrange_interpolation_func = lambda rho_x, rho_data, E_data, P_data: lagrange_polynomial(rho_x, rho_data, eval_H(E_data, P_data, rs))
     P_lagrange_interpolation_func = lambda rho_x, rho_data, P_data: lagrange_polynomial(rho_x, rho_data, P_data)
+    E_lagrange_interpolation_func = lambda rho_x, rho_data, E_data: lagrange_polynomial(rho_x, rho_data, E_data)
     H_rho_lagrange_interpolation_func = lambda rho_x: H_lagrange_interpolation_func(rho_x, rho, E, P)
     P_rho_lagrange_interpolation_func = lambda rho_x: P_lagrange_interpolation_func(rho_x, rho, P)
+    E_rho_lagrange_interpolation_func = lambda rho_x: E_lagrange_interpolation_func(rho_x, rho, E)
 
     # initial guess
     rho1 = jnp.min(rho)
@@ -371,19 +377,26 @@ def eval_rho_P_hugoniot_lagrange_interpolation(E, E_std, P, P_std, EP_cov, rs):
 
     rho_hugoniot = newton(H_rho_lagrange_interpolation_func, rho_init)
     H_partial_rho = jax.grad(H_rho_lagrange_interpolation_func)(rho_hugoniot)
-    H_partial_E = jax.jacrev(H_lagrange_interpolation_func, argnums=2)(rho_hugoniot, rho, E, P)
-    H_partial_P = jax.jacrev(H_lagrange_interpolation_func, argnums=3)(rho_hugoniot, rho, E, P)
+    H_partial_E = jax.grad(H_lagrange_interpolation_func, argnums=2)(rho_hugoniot, rho, E, P)
+    H_partial_P = jax.grad(H_lagrange_interpolation_func, argnums=3)(rho_hugoniot, rho, E, P)
     rho_std_hugoniot = jnp.sqrt((jnp.dot(H_partial_E**2, E_std**2) + jnp.dot(H_partial_P**2, P_std**2) +
                                  2*jnp.dot(H_partial_E*H_partial_P, EP_cov)) / H_partial_rho**2)
     
     P_hugoniot = P_rho_lagrange_interpolation_func(rho_hugoniot)
     P_partial_rho = jax.grad(P_rho_lagrange_interpolation_func)(rho_hugoniot)
     P_partial_E = - P_partial_rho * H_partial_E / H_partial_rho
-    P_partial_P = jax.jacrev(P_lagrange_interpolation_func, argnums=2)(rho_hugoniot, rho, P) - P_partial_rho * H_partial_P / H_partial_rho
+    P_partial_P = jax.grad(P_lagrange_interpolation_func, argnums=2)(rho_hugoniot, rho, P) - P_partial_rho * H_partial_P / H_partial_rho
     P_std_hugoniot = jnp.sqrt((jnp.dot(P_partial_E**2, E_std**2) + jnp.dot(P_partial_P**2, P_std**2) +
                                2*jnp.dot(P_partial_E*P_partial_P, EP_cov)))
     
-    return rho_hugoniot, rho_std_hugoniot, P_hugoniot, P_std_hugoniot, H_rho_lagrange_interpolation_func, P_rho_lagrange_interpolation_func
+    E_hugoniot = E_rho_lagrange_interpolation_func(rho_hugoniot)
+    E_partial_rho = jax.grad(E_rho_lagrange_interpolation_func)(rho_hugoniot)
+    E_partial_E = jax.grad(E_lagrange_interpolation_func, argnums=2)(rho_hugoniot, rho, E) - E_partial_rho * H_partial_E / H_partial_rho
+    E_partial_P = - E_partial_rho * H_partial_P / H_partial_rho
+    E_std_hugoniot = jnp.sqrt((jnp.dot(E_partial_E**2, E_std**2) + jnp.dot(E_partial_P**2, P_std**2) +
+                               2*jnp.dot(E_partial_E*E_partial_P, EP_cov)))
+    
+    return rho_hugoniot, rho_std_hugoniot, P_hugoniot, P_std_hugoniot, E_hugoniot, E_std_hugoniot, H_rho_lagrange_interpolation_func, P_rho_lagrange_interpolation_func
 
 def eval_H_file(file, silent_mode: bool = False):
     """
@@ -545,7 +558,7 @@ def hugoniot_point(files,
         axes[0].spines['right'].set_color(fontcolor)
         axes[0].tick_params(axis='both', colors=fontcolor)
 
-        ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs/prl2000_hugoniot.csv'
+        ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs/prl2000_hugoniot.csv'
         ref_df = pd.read_csv(ref_filename, delimiter=r"\s+")
         ref_n = 4
         rho_ref = ref_df['rho'].to_numpy()[-ref_n:]/rho0 # rho/rho0
@@ -553,21 +566,21 @@ def hugoniot_point(files,
         P_ref = ref_df['p'].to_numpy()[-ref_n:] * 100 # GPa
         P_err_ref = ref_df['p_err'].to_numpy()[-ref_n:] * 100 # GPa
 
-        ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs/prl2000_hugoniot_exp1.csv'
+        ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs/prl2000_hugoniot_exp1.csv'
         ref_df = pd.read_csv(ref_filename, delimiter=r"\s+")
         rho_ref_exp1 = ref_df['rho'].to_numpy()/rho0 # rho/rho0
         rho_err_ref_exp1 = ref_df['rho_err'].to_numpy()/rho0 # rho/rho0
         P_ref_exp1 = ref_df['p'].to_numpy() * 100 # GPa
         P_err_ref_exp1 = ref_df['p_err'].to_numpy() * 100 # GPa
 
-        ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs/prl2000_hugoniot_exp2.csv'
+        ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs/prl2000_hugoniot_exp2.csv'
         ref_df = pd.read_csv(ref_filename, delimiter=r"\s+")
         rho_ref_exp2 = ref_df['rho'].to_numpy()/rho0 # rho/rho0
         rho_err_ref_exp2 = ref_df['rho_err'].to_numpy()/rho0 # rho/rho0
         P_ref_exp2 = ref_df['p'].to_numpy() * 100 # GPa
         P_err_ref_exp2 = ref_df['p_err'].to_numpy() * 100 # GPa
 
-        ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs/prl2000_hugoniot_dft.csv'
+        ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs/prl2000_hugoniot_dft.csv'
         ref_df = pd.read_csv(ref_filename, delimiter=r"\s+")
         rho_ref_dft = ref_df['rho'].to_numpy()/rho0 # rho/rho0
         P_ref_dft = ref_df['p'].to_numpy() * 100 # GPa
@@ -618,6 +631,8 @@ def hugoniot_point2(files,
         rho_std_hugoniot: float, standard deviation of rho/rho0 on Hugoniot curve.
         P_hugoniot: float, pressure on Hugoniot curve, unit: GPa
         P_std_hugoniot: float, standard deviation of pressure on Hugoniot curve, unit: GPa
+        E_hugoniot: float, energy on Hugoniot curve, unit: Ha
+        E_std_hugoniot: float, standard deviation of energy on Hugoniot curve, unit: Ha
     """
     n_file = len(files)
     if n_file < 2:
@@ -659,13 +674,14 @@ def hugoniot_point2(files,
             print(f"{MAGENTA}Loaded P{i_file+1} (GPa):{RESET} {P_ave[i_file]} ± {P_std[i_file]}")
             print(f"{MAGENTA}Loaded H{i_file+1}:{RESET} {H[i_file]} ± {H_std[i_file]}")
 
-    rho_hugoniot, rho_std_hugoniot, P_hugoniot, P_std_hugoniot, H_rho_lagrange_interpolation_func, P_rho_lagrange_interpolation_func \
+    rho_hugoniot, rho_std_hugoniot, P_hugoniot, P_std_hugoniot, E_hugoniot, E_std_hugoniot, H_rho_lagrange_interpolation_func, P_rho_lagrange_interpolation_func \
         = eval_rho_P_hugoniot_lagrange_interpolation(E_ave, E_std, P_ave, P_std, EP_cov, rs)
 
     if not silent_mode:
         print(f"{YELLOW}----- Hugoniot Point -----{RESET}")
         print(f"{MAGENTA}Hugoniot rho/rho0:{RESET} {rho_hugoniot} ± {rho_std_hugoniot}")
         print(f"{MAGENTA}Hugoniot P (GPa):{RESET} {P_hugoniot} ± {P_std_hugoniot}")
+        print(f"{MAGENTA}Hugoniot E (Ha):{RESET} {E_hugoniot} ± {E_std_hugoniot}")
     
     if savefigname is not None:
         # dark mode
@@ -680,7 +696,7 @@ def hugoniot_point2(files,
         fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(4.5, 7.2), dpi=300, sharex=True, facecolor=facecolor)
 
         if experiment:
-            # ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Zmachine.csv'
+            # ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Zmachine.csv'
             # ref_df = pd.read_csv(ref_filename)
             # rho_ref_exp = ref_df['rho'].to_numpy() # rho/rho0
             # rho_err_ref_exp = ref_df['rho_err'].to_numpy() # rho/rho0
@@ -688,7 +704,7 @@ def hugoniot_point2(files,
             # P_err_ref_exp = ref_df['p_err'].to_numpy() # GPa
             # axes[0].errorbar(rho_ref_exp, P_ref_exp, xerr=rho_err_ref_exp, fmt='D', markerfacecolor='none', markeredgecolor='sienna', color='sienna', capsize=2, label='Z-machine', linewidth=0.7, markersize=4, alpha=0.4)
 
-            # ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Omega.csv'
+            # ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Omega.csv'
             # ref_df = pd.read_csv(ref_filename)
             # rho_ref_exp = ref_df['rho'].to_numpy() # rho/rho0
             # rho_err_ref_exp = ref_df['rho_err'].to_numpy() # rho/rho0
@@ -696,15 +712,15 @@ def hugoniot_point2(files,
             # P_err_ref_exp = ref_df['p_err'].to_numpy() # GPa
             # axes[0].errorbar(rho_ref_exp, P_ref_exp, xerr=rho_err_ref_exp, fmt='X', markerfacecolor='none', markeredgecolor='darkslategray', color='darkslategray', capsize=2, label='Omega', linewidth=0.7, markersize=4, alpha=0.4)
 
-            # ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Omega_reanalyzed.csv'
-            # ref_df = pd.read_csv(ref_filename)
-            # rho_ref_exp = ref_df['rho'].to_numpy() # rho/rho0
-            # rho_err_ref_exp = ref_df['rho_err'].to_numpy() # rho/rho0
-            # P_ref_exp = ref_df['p'].to_numpy() # GPa
-            # P_err_ref_exp = ref_df['p_err'].to_numpy() # GPa
-            # axes[0].errorbar(rho_ref_exp, P_ref_exp, xerr=rho_err_ref_exp, fmt='s', markerfacecolor='none', markeredgecolor='darkblue', color='darkblue', capsize=2, label='Omega, reanalyzed', linewidth=0.7, markersize=4, alpha=0.4)
+            # ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Omega_reanalyzed.csv'
+            ref_df = pd.read_csv(ref_filename)
+            rho_ref_exp = ref_df['rho'].to_numpy() # rho/rho0
+            rho_err_ref_exp = ref_df['rho_err'].to_numpy() # rho/rho0
+            P_ref_exp = ref_df['p'].to_numpy() # GPa
+            P_err_ref_exp = ref_df['p_err'].to_numpy() # GPa
+            axes[0].errorbar(rho_ref_exp, P_ref_exp, xerr=rho_err_ref_exp, fmt='s', markerfacecolor='none', markeredgecolor='darkblue', color='darkblue', capsize=2, label='Omega, reanalyzed', linewidth=0.7, markersize=4, alpha=0.4)
 
-            # ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Explosions.csv'
+            # ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Explosions.csv'
             # ref_df = pd.read_csv(ref_filename)
             # rho_ref_exp = ref_df['rho'].to_numpy() # rho/rho0
             # rho_err_ref_exp = ref_df['rho_err'].to_numpy() # rho/rho0
@@ -712,7 +728,7 @@ def hugoniot_point2(files,
             # P_err_ref_exp = ref_df['p_err'].to_numpy() # GPa
             # axes[0].errorbar(rho_ref_exp, P_ref_exp, xerr=rho_err_ref_exp, fmt='*', markerfacecolor='none', markeredgecolor='cadetblue', color='cadetblue', capsize=2, label='Explosions', linewidth=0.7, markersize=4, alpha=0.4)
 
-            # ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Sano.csv'
+            # ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Sano.csv'
             # ref_df = pd.read_csv(ref_filename)
             # rho_ref_exp = ref_df['rho'].to_numpy() # rho/rho0
             # rho_err_ref_exp = ref_df['rho_err'].to_numpy() # rho/rho0
@@ -720,7 +736,7 @@ def hugoniot_point2(files,
             # P_err_ref_exp = ref_df['p_err'].to_numpy() # GPa
             # axes[0].errorbar(rho_ref_exp, P_ref_exp, xerr=rho_err_ref_exp, fmt='o', markerfacecolor='none', markeredgecolor='darkgoldenrod', color='darkgoldenrod', capsize=2, label='Sano', linewidth=0.7, markersize=4, alpha=0.4)
 
-            # ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Fernandez.csv'
+            # ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Fernandez.csv'
             # ref_df = pd.read_csv(ref_filename)
             # rho_ref_exp = ref_df['rho'].to_numpy() # rho/rho0
             # rho_err_ref_exp = ref_df['rho_err'].to_numpy() # rho/rho0
@@ -728,7 +744,7 @@ def hugoniot_point2(files,
             # P_err_ref_exp = ref_df['p_err'].to_numpy() # GPa
             # axes[0].errorbar(rho_ref_exp, P_ref_exp, xerr=rho_err_ref_exp, fmt='P', markerfacecolor='none', markeredgecolor='purple', color='purple', capsize=2, label='Fernandez', linewidth=0.7, markersize=4, alpha=0.4)
 
-            # ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Dick.csv'
+            # ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Dick.csv'
             # ref_df = pd.read_csv(ref_filename)
             # rho_ref_exp = ref_df['rho'].to_numpy() # rho/rho0
             # rho_err_ref_exp = ref_df['rho_err'].to_numpy() # rho/rho0
@@ -736,7 +752,7 @@ def hugoniot_point2(files,
             # P_err_ref_exp = ref_df['p_err'].to_numpy() # GPa
             # axes[0].plot(rho_ref_exp, P_ref_exp, marker='^', markerfacecolor='none', markeredgecolor='darkolivegreen', color='darkolivegreen', label='Dick', linewidth=0.7, markersize=4, alpha=0.4)
 
-            # ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Nellis.csv'
+            # ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Nellis.csv'
             # ref_df = pd.read_csv(ref_filename)
             # rho_ref_exp = ref_df['rho'].to_numpy() # rho/rho0
             # rho_err_ref_exp = ref_df['rho_err'].to_numpy() # rho/rho0
@@ -744,7 +760,7 @@ def hugoniot_point2(files,
             # P_err_ref_exp = ref_df['p_err'].to_numpy() # GPa
             # axes[0].errorbar(rho_ref_exp, P_ref_exp, xerr=rho_err_ref_exp, fmt='1', markerfacecolor='none', markeredgecolor='darkmagenta', color='darkmagenta', capsize=2, label='Nellis', linewidth=0.7, markersize=4, alpha=0.4)
 
-            ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Zmachine2017.csv'
+            ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Zmachine2017.csv'
             ref_df = pd.read_csv(ref_filename)
             rho_ref_exp = ref_df['rho'].to_numpy() # rho/rho0
             rho_err_ref_exp = ref_df['rho_err'].to_numpy() # rho/rho0
@@ -752,7 +768,7 @@ def hugoniot_point2(files,
             P_err_ref_exp = ref_df['p_err'].to_numpy() # GPa
             zmachine = axes[0].errorbar(rho_ref_exp, P_ref_exp, xerr=rho_err_ref_exp, fmt='D', markerfacecolor='none', markeredgecolor='slategray', color='slategray', capsize=2, label='Z-machine (Knudson2017)', linewidth=0.7, markersize=4, alpha=0.5)
 
-            ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Fernandez.csv'
+            ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Fernandez.csv'
             ref_df = pd.read_csv(ref_filename)
             rho_ref_exp = ref_df['rho'].to_numpy() # rho/rho0
             rho_err_ref_exp = ref_df['rho_err'].to_numpy() # rho/rho0
@@ -761,25 +777,25 @@ def hugoniot_point2(files,
             fernandez = axes[0].errorbar(rho_ref_exp, P_ref_exp, xerr=rho_err_ref_exp, fmt='s', markerfacecolor='white', markeredgecolor='slategrey', color='slategrey', capsize=2, label='Laser (Fernandez2019)', linewidth=0.7, markersize=4, alpha=0.5)
 
         if theory:
-            # ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs/prl2000_hugoniot_dft.csv'
+            # ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs/prl2000_hugoniot_dft.csv'
             # ref_df = pd.read_csv(ref_filename, delimiter=r"\s+")
             # rho_ref_dft = ref_df['rho'].to_numpy()/rho0 # rho/rho0
             # P_ref_dft = ref_df['p'].to_numpy() * 100 # GPa
             # axes[0].plot(rho_ref_dft, P_ref_dft, '-.', color='darkgreen', label='DFT-MD', linewidth=0.7)
 
-            # ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_SESAME.csv'
+            # ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_SESAME.csv'
             # ref_df = pd.read_csv(ref_filename)
             # rho_ref_dft = ref_df['rho'].to_numpy() # rho/rho0
             # P_ref_dft = ref_df['p'].to_numpy() # GPa
             # axes[0].plot(rho_ref_dft, P_ref_dft, '-', color='BLACK', label='SESAME', linewidth=0.7, alpha=0.4)
 
-            # ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_CEIMC.csv'
+            # ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_CEIMC.csv'
             # ref_df = pd.read_csv(ref_filename)
             # rho_ref_dft = ref_df['rho'].to_numpy() # rho/rho0
             # P_ref_dft = ref_df['p'].to_numpy() # GPa
             # axes[0].plot(rho_ref_dft, P_ref_dft, marker='o', markerfacecolor='none', markeredgecolor='darkred', linestyle='', label='CEIMC', linewidth=0.7)
 
-            # ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs/prl2000_hugoniot.csv'
+            # ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs/prl2000_hugoniot.csv'
             # ref_df = pd.read_csv(ref_filename, delimiter=r"\s+")
             # ref_n = 4
             # rho_ref = ref_df['rho'].to_numpy()[-ref_n:]/rho0 # rho/rho0
@@ -788,48 +804,56 @@ def hugoniot_point2(files,
             # P_err_ref = ref_df['p_err'].to_numpy()[-ref_n:] * 100 # GPa
             # axes[0].errorbar(rho_ref, P_ref, xerr=rho_err_ref, yerr=P_err_ref, marker='^', markerfacecolor='none', color='mediumblue', capsize=3, label='RPIMC', linewidth=0.7, markersize=4)
 
-            ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_DFTMD.csv'
+            ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_DFTMD.csv'
             ref_df = pd.read_csv(ref_filename)
             rho_ref_dftmd = ref_df['rho'].to_numpy() # rho/rho0
             P_ref_dftmd = ref_df['p'].to_numpy() # GPa
             dftmd, = axes[0].plot(rho_ref_dftmd, P_ref_dftmd, linestyle="-", markerfacecolor='none', color='darkblue', label='DFT-MD (Caillabet2011)', linewidth=0.8, markersize=4)
 
-            ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_DFTFT_Knudson.csv'
+            ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_DFTFT_Knudson.csv'
             ref_df = pd.read_csv(ref_filename)
             rho_ref_dftft = ref_df['rho'].to_numpy() # rho/rho0
             P_ref_dftft = ref_df['p'].to_numpy() # GPa
             dftft, = axes[0].plot(rho_ref_dftft, P_ref_dftft, linestyle="-.", markerfacecolor='none', color='darkorchid', label='DFT-FT (Knudson2017)', linewidth=0.8, markersize=4)
 
-            ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Filinov2005.csv'
+            ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Filinov2005.csv'
             ref_df = pd.read_csv(ref_filename)
             rho_ref_pimc = ref_df['rho'].to_numpy() # rho/rho0
             P_ref_pimc = ref_df['p'].to_numpy() # GPa
-            filinov2005, = axes[0].plot(rho_ref_pimc, P_ref_pimc, linestyle="-", marker="P", markeredgecolor='black', color='orchid', markeredgewidth=0.5, label='Direct PIMC (Filinov2005)', linewidth=0.8, markersize=4.5)
+            filinov2005, = axes[0].plot(rho_ref_pimc, P_ref_pimc, linestyle="-", marker="P", markeredgecolor='black', color='orchid', markeredgewidth=0.5, label='Direct PIMC (Filinov2005)', linewidth=0.8, markersize=4)
 
-            ref_filename ='/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_CEIMC2.csv'
+            ref_filename ='/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_CEIMC2.csv'
             ref_df = pd.read_csv(ref_filename)
             rho_ref = ref_df['rho'].to_numpy() # rho/rho0
             rho_err_ref = ref_df['rho_err'].to_numpy() # rho/rho0
             P_ref = ref_df['p'].to_numpy() # GPa
             P_err_ref = ref_df['p_err'].to_numpy() # GPa
-            ceimc = axes[0].errorbar(rho_ref, P_ref, xerr=rho_err_ref, yerr=P_err_ref, marker='d', color='mediumaquamarine', markeredgecolor='black', markeredgewidth=0.5, capsize=3.5, label='CEIMC (Tubman2015)', linewidth=0.8, markersize=4.5)
+            ceimc = axes[0].errorbar(rho_ref, P_ref, xerr=rho_err_ref, yerr=P_err_ref, marker='d', linestyle=':', color='mediumaquamarine', markeredgecolor='black', markeredgewidth=0.5, capsize=3.5, label='CEIMC (Tubman2015)', linewidth=0.8, markersize=4.5)
 
-            ref_filename ='/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_khairallah2011.csv'
+            ref_filename ='/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Deltalearning_LRDMC.csv'
             ref_df = pd.read_csv(ref_filename)
             rho_ref = ref_df['rho'].to_numpy() # rho/rho0
             rho_err_ref = ref_df['rho_err'].to_numpy() # rho/rho0
             P_ref = ref_df['p'].to_numpy() # GPa
             P_err_ref = ref_df['p_err'].to_numpy() # GPa
-            rpimc = axes[0].errorbar(rho_ref, P_ref, xerr=rho_err_ref, yerr=P_err_ref, marker='v', linestyle='-', markeredgecolor='black', color='orange', markeredgewidth=0.5, capsize=3.5, label='RPIMC (Khairallah2011)', linewidth=0.8, markersize=4.5)
+            deltalearning = axes[0].errorbar(rho_ref, P_ref, xerr=rho_err_ref, yerr=P_err_ref, marker='s', color='teal', markeredgecolor='black', markeredgewidth=0.5, capsize=3.5, label=r'$\Delta$-learning(Tenti2024)', linestyle='', linewidth=1, markersize=4)
 
-            ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs/prl2000_hugoniot.csv'
+            ref_filename ='/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_khairallah2011.csv'
+            ref_df = pd.read_csv(ref_filename)
+            rho_ref = ref_df['rho'].to_numpy() # rho/rho0
+            rho_err_ref = ref_df['rho_err'].to_numpy() # rho/rho0
+            P_ref = ref_df['p'].to_numpy() # GPa
+            P_err_ref = ref_df['p_err'].to_numpy() # GPa
+            rpimc = axes[0].errorbar(rho_ref, P_ref, xerr=rho_err_ref, yerr=P_err_ref, marker='v', linestyle='', markeredgecolor='black', color='darkslateblue', markeredgewidth=0.5, capsize=3.5, label='RPIMC (Khairallah2011)', linewidth=0.8, markersize=4.5)
+
+            ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs/prl2000_hugoniot.csv'
             ref_df = pd.read_csv(ref_filename, delimiter=r"\s+")
             ref_n = 5
             rho_ref = ref_df['rho'].to_numpy()[-ref_n:]/rho0 # rho/rho0
             rho_err_ref = ref_df['rho_err'].to_numpy()[-ref_n:]/rho0 # rho/rho0
             P_ref = ref_df['p'].to_numpy()[-ref_n:] * 100 # GPa
             P_err_ref = ref_df['p_err'].to_numpy()[-ref_n:] * 100 # GPa
-            pimc = axes[0].errorbar(rho_ref, P_ref, xerr=rho_err_ref, yerr=P_err_ref, marker='^', color='cornflowerblue', markeredgecolor='black', markeredgewidth=0.5, capsize=3.5, label='RPIMC (Militzer2000)', linewidth=0.8, markersize=4.5)
+            pimc = axes[0].errorbar(rho_ref, P_ref, xerr=rho_err_ref, yerr=P_err_ref, marker='^', linestyle='--', color='cornflowerblue', markeredgecolor='black', markeredgewidth=0.5, capsize=3.5, label='RPIMC (Militzer2000)', linewidth=0.8, markersize=4.5)
 
         rho_min = np.min(rho)
         rho_max = np.max(rho)
@@ -947,7 +971,7 @@ def hugoniot_point2(files,
             plt.savefig(savefigname, dpi=300)
             print(f"{GREEN}Figure saved as {savefigname}{RESET}")
 
-    return rho_hugoniot, rho_std_hugoniot, P_hugoniot, P_std_hugoniot, H, H_std, rho, P_ave, P_std
+    return rho_hugoniot, rho_std_hugoniot, P_hugoniot, P_std_hugoniot, E_hugoniot, E_std_hugoniot, H, H_std, rho, P_ave, P_std
 
 def hugoniot_point_inf(csv_filename, T,
                        savefigname: str = None, 
@@ -966,6 +990,8 @@ def hugoniot_point_inf(csv_filename, T,
         rho_std_hugoniot: float, standard deviation of rho/rho0 on Hugoniot curve.
         P_hugoniot: float, pressure on Hugoniot curve, unit: GPa
         P_std_hugoniot: float, standard deviation of pressure on Hugoniot curve, unit: GPa
+        E_hugoniot: float, energy on Hugoniot curve, unit: Ha
+        E_std_hugoniot: float, standard deviation of energy on Hugoniot curve, unit: Ha
     """
 
     df = pd.read_csv(csv_filename)
@@ -1008,13 +1034,14 @@ def hugoniot_point_inf(csv_filename, T,
             print(f"{MAGENTA}Loaded P{i_file+1} (GPa):{RESET} {P_ave[i_file]} ± {P_std[i_file]}")
             print(f"{MAGENTA}Loaded H{i_file+1}:{RESET} {H[i_file]} ± {H_std[i_file]}")
 
-    rho_hugoniot, rho_std_hugoniot, P_hugoniot, P_std_hugoniot, H_rho_lagrange_interpolation_func, P_rho_lagrange_interpolation_func \
+    rho_hugoniot, rho_std_hugoniot, P_hugoniot, P_std_hugoniot, E_hugoniot, E_std_hugoniot, H_rho_lagrange_interpolation_func, P_rho_lagrange_interpolation_func \
         = eval_rho_P_hugoniot_lagrange_interpolation(E_ave, E_std, P_ave, P_std, EP_cov, rs)
 
     if not silent_mode:
         print(f"{YELLOW}----- Hugoniot Point -----{RESET}")
         print(f"{MAGENTA}Hugoniot rho/rho0:{RESET} {rho_hugoniot} ± {rho_std_hugoniot}")
         print(f"{MAGENTA}Hugoniot P (GPa):{RESET} {P_hugoniot} ± {P_std_hugoniot}")
+        print(f"{MAGENTA}Hugoniot E (Ha):{RESET} {E_hugoniot} ± {E_std_hugoniot}")
     
     if savefigname is not None:
         # dark mode
@@ -1035,7 +1062,7 @@ def hugoniot_point_inf(csv_filename, T,
         P_rho = P_rho_lagrange_interpolation_func(rho_mesh)
 
         if experiment:
-            # ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Zmachine.csv'
+            # ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Zmachine.csv'
             # ref_df = pd.read_csv(ref_filename)
             # rho_ref_exp = ref_df['rho'].to_numpy() # rho/rho0
             # rho_err_ref_exp = ref_df['rho_err'].to_numpy() # rho/rho0
@@ -1043,7 +1070,7 @@ def hugoniot_point_inf(csv_filename, T,
             # P_err_ref_exp = ref_df['p_err'].to_numpy() # GPa
             # axes[0].errorbar(rho_ref_exp, P_ref_exp, xerr=rho_err_ref_exp, fmt='D', markerfacecolor='none', markeredgecolor='sienna', color='sienna', capsize=2, label='Z-machine', linewidth=0.7, markersize=4, alpha=0.4)
 
-            # ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Omega.csv'
+            # ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Omega.csv'
             # ref_df = pd.read_csv(ref_filename)
             # rho_ref_exp = ref_df['rho'].to_numpy() # rho/rho0
             # rho_err_ref_exp = ref_df['rho_err'].to_numpy() # rho/rho0
@@ -1051,7 +1078,7 @@ def hugoniot_point_inf(csv_filename, T,
             # P_err_ref_exp = ref_df['p_err'].to_numpy() # GPa
             # axes[0].errorbar(rho_ref_exp, P_ref_exp, xerr=rho_err_ref_exp, fmt='X', markerfacecolor='none', markeredgecolor='darkslategray', color='darkslategray', capsize=2, label='Omega', linewidth=0.7, markersize=4, alpha=0.4)
 
-            # ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Omega_reanalyzed.csv'
+            # ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Omega_reanalyzed.csv'
             # ref_df = pd.read_csv(ref_filename)
             # rho_ref_exp = ref_df['rho'].to_numpy() # rho/rho0
             # rho_err_ref_exp = ref_df['rho_err'].to_numpy() # rho/rho0
@@ -1059,7 +1086,7 @@ def hugoniot_point_inf(csv_filename, T,
             # P_err_ref_exp = ref_df['p_err'].to_numpy() # GPa
             # axes[0].errorbar(rho_ref_exp, P_ref_exp, xerr=rho_err_ref_exp, fmt='s', markerfacecolor='none', markeredgecolor='darkblue', color='darkblue', capsize=2, label='Omega, reanalyzed', linewidth=0.7, markersize=4, alpha=0.4)
 
-            # ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Explosions.csv'
+            # ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Explosions.csv'
             # ref_df = pd.read_csv(ref_filename)
             # rho_ref_exp = ref_df['rho'].to_numpy() # rho/rho0
             # rho_err_ref_exp = ref_df['rho_err'].to_numpy() # rho/rho0
@@ -1067,7 +1094,7 @@ def hugoniot_point_inf(csv_filename, T,
             # P_err_ref_exp = ref_df['p_err'].to_numpy() # GPa
             # axes[0].errorbar(rho_ref_exp, P_ref_exp, xerr=rho_err_ref_exp, fmt='*', markerfacecolor='none', markeredgecolor='cadetblue', color='cadetblue', capsize=2, label='Explosions', linewidth=0.7, markersize=4, alpha=0.4)
 
-            # ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Sano.csv'
+            # ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Sano.csv'
             # ref_df = pd.read_csv(ref_filename)
             # rho_ref_exp = ref_df['rho'].to_numpy() # rho/rho0
             # rho_err_ref_exp = ref_df['rho_err'].to_numpy() # rho/rho0
@@ -1075,7 +1102,7 @@ def hugoniot_point_inf(csv_filename, T,
             # P_err_ref_exp = ref_df['p_err'].to_numpy() # GPa
             # axes[0].errorbar(rho_ref_exp, P_ref_exp, xerr=rho_err_ref_exp, fmt='o', markerfacecolor='none', markeredgecolor='darkgoldenrod', color='darkgoldenrod', capsize=2, label='Sano', linewidth=0.7, markersize=4, alpha=0.4)
 
-            # ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Fernandez.csv'
+            # ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Fernandez.csv'
             # ref_df = pd.read_csv(ref_filename)
             # rho_ref_exp = ref_df['rho'].to_numpy() # rho/rho0
             # rho_err_ref_exp = ref_df['rho_err'].to_numpy() # rho/rho0
@@ -1083,7 +1110,7 @@ def hugoniot_point_inf(csv_filename, T,
             # P_err_ref_exp = ref_df['p_err'].to_numpy() # GPa
             # axes[0].errorbar(rho_ref_exp, P_ref_exp, xerr=rho_err_ref_exp, fmt='P', markerfacecolor='none', markeredgecolor='purple', color='purple', capsize=2, label='Fernandez', linewidth=0.7, markersize=4, alpha=0.4)
 
-            # ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Dick.csv'
+            # ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Dick.csv'
             # ref_df = pd.read_csv(ref_filename)
             # rho_ref_exp = ref_df['rho'].to_numpy() # rho/rho0
             # rho_err_ref_exp = ref_df['rho_err'].to_numpy() # rho/rho0
@@ -1091,7 +1118,7 @@ def hugoniot_point_inf(csv_filename, T,
             # P_err_ref_exp = ref_df['p_err'].to_numpy() # GPa
             # axes[0].plot(rho_ref_exp, P_ref_exp, marker='^', markerfacecolor='none', markeredgecolor='darkolivegreen', color='darkolivegreen', label='Dick', linewidth=0.7, markersize=4, alpha=0.4)
 
-            # ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Nellis.csv'
+            # ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Nellis.csv'
             # ref_df = pd.read_csv(ref_filename)
             # rho_ref_exp = ref_df['rho'].to_numpy() # rho/rho0
             # rho_err_ref_exp = ref_df['rho_err'].to_numpy() # rho/rho0
@@ -1099,7 +1126,7 @@ def hugoniot_point_inf(csv_filename, T,
             # P_err_ref_exp = ref_df['p_err'].to_numpy() # GPa
             # axes[0].errorbar(rho_ref_exp, P_ref_exp, xerr=rho_err_ref_exp, fmt='1', markerfacecolor='none', markeredgecolor='darkmagenta', color='darkmagenta', capsize=2, label='Nellis', linewidth=0.7, markersize=4, alpha=0.4)
 
-            ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Zmachine2017.csv'
+            ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Zmachine2017.csv'
             ref_df = pd.read_csv(ref_filename)
             rho_ref_exp = ref_df['rho'].to_numpy() # rho/rho0
             rho_err_ref_exp = ref_df['rho_err'].to_numpy() # rho/rho0
@@ -1107,7 +1134,7 @@ def hugoniot_point_inf(csv_filename, T,
             P_err_ref_exp = ref_df['p_err'].to_numpy() # GPa
             zmachine = axes[0].errorbar(rho_ref_exp, P_ref_exp, xerr=rho_err_ref_exp, fmt='D', markerfacecolor='none', markeredgecolor='slategray', color='slategray', capsize=2, label='Z-machine (Knudson2017)', linewidth=0.7, markersize=4, alpha=0.5)
 
-            ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Fernandez.csv'
+            ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Fernandez.csv'
             ref_df = pd.read_csv(ref_filename)
             rho_ref_exp = ref_df['rho'].to_numpy() # rho/rho0
             rho_err_ref_exp = ref_df['rho_err'].to_numpy() # rho/rho0
@@ -1116,25 +1143,25 @@ def hugoniot_point_inf(csv_filename, T,
             fernandez = axes[0].errorbar(rho_ref_exp, P_ref_exp, xerr=rho_err_ref_exp, fmt='s', markerfacecolor='white', markeredgecolor='slategrey', color='slategrey', capsize=2, label='Laser (Fernandez2019)', linewidth=0.7, markersize=4, alpha=0.5)
 
         if theory:
-            # ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs/prl2000_hugoniot_dft.csv'
+            # ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs/prl2000_hugoniot_dft.csv'
             # ref_df = pd.read_csv(ref_filename, delimiter=r"\s+")
             # rho_ref_dft = ref_df['rho'].to_numpy()/rho0 # rho/rho0
             # P_ref_dft = ref_df['p'].to_numpy() * 100 # GPa
             # axes[0].plot(rho_ref_dft, P_ref_dft, '-.', color='darkgreen', label='DFT-MD', linewidth=0.7)
 
-            # ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_SESAME.csv'
+            # ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_SESAME.csv'
             # ref_df = pd.read_csv(ref_filename)
             # rho_ref_dft = ref_df['rho'].to_numpy() # rho/rho0
             # P_ref_dft = ref_df['p'].to_numpy() # GPa
             # axes[0].plot(rho_ref_dft, P_ref_dft, '-', color='BLACK', label='SESAME', linewidth=0.7, alpha=0.4)
 
-            # ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_CEIMC.csv'
+            # ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_CEIMC.csv'
             # ref_df = pd.read_csv(ref_filename)
             # rho_ref_dft = ref_df['rho'].to_numpy() # rho/rho0
             # P_ref_dft = ref_df['p'].to_numpy() # GPa
             # axes[0].plot(rho_ref_dft, P_ref_dft, marker='o', markerfacecolor='none', markeredgecolor='darkred', linestyle='', label='CEIMC', linewidth=0.7)
 
-            # ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs/prl2000_hugoniot.csv'
+            # ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs/prl2000_hugoniot.csv'
             # ref_df = pd.read_csv(ref_filename, delimiter=r"\s+")
             # ref_n = 4
             # rho_ref = ref_df['rho'].to_numpy()[-ref_n:]/rho0 # rho/rho0
@@ -1143,33 +1170,33 @@ def hugoniot_point_inf(csv_filename, T,
             # P_err_ref = ref_df['p_err'].to_numpy()[-ref_n:] * 100 # GPa
             # axes[0].errorbar(rho_ref, P_ref, xerr=rho_err_ref, yerr=P_err_ref, marker='^', markerfacecolor='none', color='mediumblue', capsize=3, label='RPIMC', linewidth=0.7, markersize=4)
 
-            ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_DFTMD.csv'
+            ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_DFTMD.csv'
             ref_df = pd.read_csv(ref_filename)
             rho_ref_dftmd = ref_df['rho'].to_numpy() # rho/rho0
             P_ref_dftmd = ref_df['p'].to_numpy() # GPa
             dftmd, = axes[0].plot(rho_ref_dftmd, P_ref_dftmd, linestyle="-", markerfacecolor='none', color='darkblue', label='DFT-MD (Caillabet2011)', linewidth=0.8, markersize=4)
 
-            ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_DFTFT_Knudson.csv'
+            ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_DFTFT_Knudson.csv'
             ref_df = pd.read_csv(ref_filename)
             rho_ref_dftft = ref_df['rho'].to_numpy() # rho/rho0
             P_ref_dftft = ref_df['p'].to_numpy() # GPa
             dftft, = axes[0].plot(rho_ref_dftft, P_ref_dftft, linestyle="-.", markerfacecolor='none', color='darkorchid', label='DFT-FT (Knudson2017)', linewidth=0.8, markersize=4)
 
-            ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Filinov2005.csv'
+            ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Filinov2005.csv'
             ref_df = pd.read_csv(ref_filename)
             rho_ref_pimc = ref_df['rho'].to_numpy() # rho/rho0
             P_ref_pimc = ref_df['p'].to_numpy() # GPa
-            filinov2005, = axes[0].plot(rho_ref_pimc, P_ref_pimc, linestyle="", marker="P", markeredgecolor='black', color='orchid', markeredgewidth=0.5, label='Direct PIMC (Filinov2005)', linewidth=0.8, markersize=4.5)
+            filinov2005, = axes[0].plot(rho_ref_pimc, P_ref_pimc, linestyle="-", marker="P", markeredgecolor='black', color='orchid', markeredgewidth=0.5, label='Direct PIMC (Filinov2005)', linewidth=0.8, markersize=4)
 
-            ref_filename ='/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_CEIMC2.csv'
+            ref_filename ='/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_CEIMC2.csv'
             ref_df = pd.read_csv(ref_filename)
             rho_ref = ref_df['rho'].to_numpy() # rho/rho0
             rho_err_ref = ref_df['rho_err'].to_numpy() # rho/rho0
             P_ref = ref_df['p'].to_numpy() # GPa
             P_err_ref = ref_df['p_err'].to_numpy() # GPa
-            ceimc = axes[0].errorbar(rho_ref, P_ref, xerr=rho_err_ref, yerr=P_err_ref, marker='d', color='mediumaquamarine', markeredgecolor='black', markeredgewidth=0.5, capsize=3.5, label='CEIMC (Tubman2015)', linewidth=0.8, markersize=4.5)
+            ceimc = axes[0].errorbar(rho_ref, P_ref, xerr=rho_err_ref, yerr=P_err_ref, marker='d', linestyle=':', color='mediumaquamarine', markeredgecolor='black', markeredgewidth=0.5, capsize=3.5, label='CEIMC (Tubman2015)', linewidth=0.8, markersize=4.5)
 
-            ref_filename ='/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Deltalearning_LRDMC.csv'
+            ref_filename ='/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_Deltalearning_LRDMC.csv'
             ref_df = pd.read_csv(ref_filename)
             rho_ref = ref_df['rho'].to_numpy() # rho/rho0
             rho_err_ref = ref_df['rho_err'].to_numpy() # rho/rho0
@@ -1177,7 +1204,7 @@ def hugoniot_point_inf(csv_filename, T,
             P_err_ref = ref_df['p_err'].to_numpy() # GPa
             deltalearning = axes[0].errorbar(rho_ref, P_ref, xerr=rho_err_ref, yerr=P_err_ref, marker='s', color='teal', markeredgecolor='black', markeredgewidth=0.5, capsize=3.5, label=r'$\Delta$-learning(Tenti2024)', linestyle='', linewidth=1, markersize=4)
 
-            ref_filename ='/home/lizh/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_khairallah2011.csv'
+            ref_filename ='/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs_hugoniot/hugoniot_khairallah2011.csv'
             ref_df = pd.read_csv(ref_filename)
             rho_ref = ref_df['rho'].to_numpy() # rho/rho0
             rho_err_ref = ref_df['rho_err'].to_numpy() # rho/rho0
@@ -1185,14 +1212,14 @@ def hugoniot_point_inf(csv_filename, T,
             P_err_ref = ref_df['p_err'].to_numpy() # GPa
             rpimc = axes[0].errorbar(rho_ref, P_ref, xerr=rho_err_ref, yerr=P_err_ref, marker='v', linestyle='', markeredgecolor='black', color='darkslateblue', markeredgewidth=0.5, capsize=3.5, label='RPIMC (Khairallah2011)', linewidth=0.8, markersize=4.5)
 
-            ref_filename = '/home/lizh/hydrogen/hydrogen/main/analysis/refs/prl2000_hugoniot.csv'
+            ref_filename = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs/prl2000_hugoniot.csv'
             ref_df = pd.read_csv(ref_filename, delimiter=r"\s+")
             ref_n = 5
             rho_ref = ref_df['rho'].to_numpy()[-ref_n:]/rho0 # rho/rho0
             rho_err_ref = ref_df['rho_err'].to_numpy()[-ref_n:]/rho0 # rho/rho0
             P_ref = ref_df['p'].to_numpy()[-ref_n:] * 100 # GPa
             P_err_ref = ref_df['p_err'].to_numpy()[-ref_n:] * 100 # GPa
-            pimc = axes[0].errorbar(rho_ref, P_ref, xerr=rho_err_ref, yerr=P_err_ref, marker='^', color='cornflowerblue', markeredgecolor='black', markeredgewidth=0.5, capsize=3.5, label='RPIMC (Militzer2000)', linewidth=0.8, markersize=4.5)
+            pimc = axes[0].errorbar(rho_ref, P_ref, xerr=rho_err_ref, yerr=P_err_ref, marker='^', linestyle='--', color='cornflowerblue', markeredgecolor='black', markeredgewidth=0.5, capsize=3.5, label='RPIMC (Militzer2000)', linewidth=0.8, markersize=4.5)
 
         rho_min = np.min(rho)
         rho_max = np.max(rho)
@@ -1200,12 +1227,12 @@ def hugoniot_point_inf(csv_filename, T,
         H_rho = H_rho_lagrange_interpolation_func(rho_mesh)
         P_rho = P_rho_lagrange_interpolation_func(rho_mesh)
 
-        vfe_raw0 = axes[0].errorbar(rho, P_ave, yerr=P_std, marker='s', color='salmon', markeredgecolor='black', markeredgewidth=0.5, capsize=3.5, label='Raw data', linewidth=1, markersize=4)
+        vfe_raw0 = axes[0].errorbar(rho, P_ave, yerr=P_std, marker='s', color='salmon', markeredgecolor='black', markeredgewidth=0.5, capsize=3.5, label='Raw data', linestyle='', linewidth=1, markersize=4)
         axes[0].plot(rho_mesh, P_rho, linestyle='-', color='salmon')
         vfe_lag0 = axes[0].errorbar(rho_hugoniot, P_hugoniot, xerr=rho_std_hugoniot, yerr=P_std_hugoniot, marker='o', color='orangered', markeredgecolor='black', markeredgewidth=0.5, capsize=4.5, linewidth=1, markersize=5, label="Interpolation "+str(int(n_file))+" points")
 
         axes[0].set_xlabel(r'$\rho/\rho_0$', color=fontcolor)
-        axes[0].set_ylabel(r'$P$ (GPa)', color=fontcolor)
+        axes[0].set_ylabel(r'Pressure $P$ (GPa)', color=fontcolor)
         axes[0].axvline(rho_hugoniot, color=fontcolor, linestyle='--', linewidth=0.5)
 
         axes[0].set_facecolor(facecolor) 
@@ -1225,9 +1252,9 @@ def hugoniot_point_inf(csv_filename, T,
         else:
             vfe_raw1 = axes[1].errorbar(rho, H, yerr=H_std, marker='s', color='salmon', markeredgecolor='black', markeredgewidth=0.5, capsize=3.5, label='Raw data', linewidth=1, markersize=4)
             axes[1].plot(rho_mesh, H_rho, linestyle='-', color='salmon')
-        vfe_lag1 = axes[1].errorbar(rho_hugoniot, 0, xerr=rho_std_hugoniot, marker='o', color='red', markeredgecolor='black', markeredgewidth=0.5, capsize=4.5, linewidth=1, markersize=5, label="Interpolation "+str(int(n_file))+" points")
+        vfe_lag1 = axes[1].errorbar(rho_hugoniot, 0, xerr=rho_std_hugoniot, marker='o', color='orangered', markeredgecolor='black', markeredgewidth=0.5, capsize=4.5, linewidth=1, markersize=5, label="Interpolation "+str(int(n_file))+" points")
         axes[1].set_xlabel(r'$\rho/\rho_0$', color=fontcolor)
-        axes[1].set_ylabel(r'$H$ ('+energy_unit+')', color=fontcolor)
+        axes[1].set_ylabel(r'Hugoniot $H$ ('+energy_unit+')', color=fontcolor)
         axes[1].axhline(0, color=fontcolor, linestyle='--', linewidth=0.5)
         axes[1].axvline(rho_hugoniot, color=fontcolor, linestyle='--', linewidth=0.5)
         
@@ -1314,7 +1341,7 @@ def hugoniot_point_inf(csv_filename, T,
         axes[1].add_artist(vfe_legend1)
 
         if savefigname is not None:
-            plt.savefig(savefigname, dpi=300)
+            plt.savefig(savefigname, dpi=1000)
             print(f"{GREEN}Figure saved as {savefigname}{RESET}")
 
-    return rho_hugoniot, rho_std_hugoniot, P_hugoniot, P_std_hugoniot, H, H_std, rho, P_ave, P_std
+    return rho_hugoniot, rho_std_hugoniot, P_hugoniot, P_std_hugoniot, E_hugoniot, E_std_hugoniot, H, H_std, rho, P_ave, P_std

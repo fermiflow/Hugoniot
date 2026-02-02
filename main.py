@@ -33,7 +33,7 @@ from hqc.pbc.lcao import make_lcao
 from hqc.pbc.slater import make_slater
 from cfgmanager import save
 
-@hydra.main(version_base=None, config_path="conf/train", config_name="config14")
+@hydra.main(version_base=None, config_path="conf/train", config_name="twist32")
 def main_func(cfg: DictConfig) -> None:
 
     if cfg.num_hosts > 1:
@@ -42,7 +42,7 @@ def main_func(cfg: DictConfig) -> None:
 
     print_logo()
     logger.remove()
-    logger.add(sys.stdout, colorize=True, format="{message}", level="DEBUG")
+    logger.add(sys.stdout, colorize=True, format="{time:YYYY-MM-DD HH:mm:ss} | {elapsed} | {level:<8} | {file}:{line} ({module}.{function}) - {message}", level="DEBUG")
     now = datetime.now()
     current_time_str = now.strftime("%Y-%m-%d_%H:%M:%S")
 
@@ -58,7 +58,7 @@ def main_func(cfg: DictConfig) -> None:
     else:
         path = cfg.folder + "n_%d_rs_%g_T_%g_" % (cfg.num, cfg.rs, cfg.T) + cfg.lcao.type \
                           + "_bs_%d_ap_%d_" %(cfg.batchsize, cfg.acc_steps) + current_time_str
-        if not os.path.isdir(path):
+        if not os.path.isdir(path) and jax.process_index() == 0:
             os.makedirs(path)
             logger.opt(colors=True).info("<green>creat directory:</green> {}", path)
 
@@ -140,8 +140,15 @@ def main_func(cfg: DictConfig) -> None:
 
 
     logger.opt(colors=True).info("<yellow>\n========= Initialize single-particle orbitals =========</yellow>")
-    kpt = jnp.array([0,0,0])
-    lcao = make_lcao(cfg.num, L, cfg.rs, cfg.lcao.basis, rcut=cfg.lcao.rcut, tol=cfg.lcao.tol,
+    kpt = jnp.array(cfg.kpt) * (2*jnp.pi/L/cfg.rs)
+    if not jnp.allclose(kpt, jnp.array([0., 0., 0.])):
+        cfg.lcao.gamma = False
+        logger.opt(colors=True).info("<blue>k-point(fractional):</blue> {}", cfg.kpt)
+        logger.opt(colors=True).info("<blue>k-point(real)):</blue> {}", kpt)
+    else:
+        logger.opt(colors=True).info("<blue>gamma point</blue>")
+    
+    _lcao = make_lcao(cfg.num, L, cfg.rs, cfg.lcao.basis, rcut=cfg.lcao.rcut, tol=cfg.lcao.tol,
                      max_cycle=cfg.lcao.max_cycle, grid_length=cfg.lcao.grid_length, diis=cfg.lcao.diis.diis, 
                      diis_space=cfg.lcao.diis.space, diis_start_cycle=cfg.lcao.diis.start_cycle, 
                      diis_damp=cfg.lcao.diis.damp, use_jit=cfg.lcao.use_jit, dft=(cfg.lcao.type=="dft"), 
@@ -149,7 +156,15 @@ def main_func(cfg: DictConfig) -> None:
                      smearing_sigma=smearing_sigma, search_method=cfg.lcao.smearing.search.method, 
                      search_cycle=cfg.lcao.smearing.search.cycle, search_tol=cfg.lcao.smearing.search.tol,
                      gamma=cfg.lcao.gamma)
-    lcao_orbitals = make_slater(cfg.num, L, cfg.rs, basis=cfg.lcao.basis, groundstate=False)
+    if cfg.lcao.gamma:
+        lcao = _lcao
+    else:
+        lcao = lambda x: _lcao(x, kpt)
+    _lcao_orbitals = make_slater(cfg.num, L, cfg.rs, basis=cfg.lcao.basis, groundstate=False, gamma=cfg.lcao.gamma)
+    if cfg.lcao.gamma:
+        lcao_orbitals = _lcao_orbitals
+    else:
+        lcao_orbitals = lambda xp, xe, mo_coeff, state_idx: _lcao_orbitals(xp, xe, mo_coeff, kpt, state_idx)
     s = jax.random.uniform(key, (cfg.num, cfg.dim), minval=0., maxval=L)
     mo_coeff, bands, _ = lcao(s)
     num_states = bands.shape[0]
@@ -245,7 +260,7 @@ def main_func(cfg: DictConfig) -> None:
     sx_dummy = jax.random.uniform(key, (2*cfg.num, cfg.dim), minval=0., maxval=L)
     params_wfn = network_wfn.init(key, sx_dummy)
     raveled_params_wfn, _ = ravel_pytree(params_wfn)
-    logpsi_novmap = make_logpsi(network_wfn, lcao_orbitals, kpt)
+    logpsi_novmap = make_logpsi(network_wfn, lcao_orbitals)
     logpsi2_novmap = make_logpsi2(logpsi_novmap)
     vmap_wfn = partial(jax.vmap, in_axes=(0, None, 0, 0, 0), out_axes=0)
     logpsi = vmap_wfn(logpsi_novmap)
@@ -599,9 +614,9 @@ def main_func(cfg: DictConfig) -> None:
                               "Sp": 0., "Sp2": 0.,
                               "Se": 0., "Se2": 0.,
                               }, num_devices)
-        grad_flow_acc = shard(jax.tree_map(jnp.zeros_like, params_flow))
-        grad_van_acc = shard(jax.tree_map(jnp.zeros_like, params_van))
-        grad_wfn_acc = shard(jax.tree_map(jnp.zeros_like, params_wfn))
+        grad_flow_acc = shard(jax.tree_util.tree_map(jnp.zeros_like, params_flow))
+        grad_van_acc = shard(jax.tree_util.tree_map(jnp.zeros_like, params_van))
+        grad_wfn_acc = shard(jax.tree_util.tree_map(jnp.zeros_like, params_wfn))
         ar_s_acc = shard(jnp.zeros(num_devices))
         ar_x_acc = shard(jnp.zeros(num_devices))
         for acc in range(cfg.acc_steps):
@@ -623,7 +638,7 @@ def main_func(cfg: DictConfig) -> None:
             # logger.opt(colors=True).info("<red>van grad:</red> {}", grad_van_acc)
             # logger.opt(colors=True).info("<red>wfn grad:</red> {}", grad_wfn_acc)
 
-        data = jax.tree_map(lambda x: x[0], data_acc)
+        data = jax.tree_util.tree_map(lambda x: x[0], data_acc)
         ar_s = ar_s_acc[0] 
         ar_x = ar_x_acc[0] 
         F, F2, E, E2, K, K2, Vpp, Vpp2, Vep, Vep2, Vee, Vee2, P, P2, EP, Sp, Sp2, Se, Se2 = \
@@ -674,9 +689,9 @@ def main_func(cfg: DictConfig) -> None:
                     "state_idx": state_idx, 
                     "mo_coeff": mo_coeff, 
                     "bands": bands,
-                    "params_flow": jax.tree_map(lambda x: x[0], params_flow),
-                    "params_van": jax.tree_map(lambda x: x[0], params_van),
-                    "params_wfn": jax.tree_map(lambda x: x[0], params_wfn),
+                    "params_flow": jax.tree_util.tree_map(lambda x: x[0], params_flow),
+                    "params_van": jax.tree_util.tree_map(lambda x: x[0], params_van),
+                    "params_wfn": jax.tree_util.tree_map(lambda x: x[0], params_wfn),
                     "opt_state_flow": jax.tree_util.tree_map(lambda x: x[0], all_gather(opt_state_flow_ckpt, "p")) 
                                 if opt_state_flow_pmap_axis is not None else opt_state_flow_ckpt, 
                     "opt_state_van": jax.tree_util.tree_map(lambda x: x[0], all_gather(opt_state_van_ckpt, "p")) 

@@ -1,0 +1,155 @@
+# multihost parameters
+num_hosts: 1
+server_addr: 10.1.1.3:9999
+host_idx: 0
+
+# system parameters
+num: 54
+dim: 3
+rs: 1.86
+T: 10000
+kpt: [0.25, 0.25, 0.25]
+
+# LCAO parameters
+lcao:
+  type: hf
+  gamma: True
+  basis: gth-dzv
+  xc: lda,vwn
+  rcut: 24
+  grid_length: 0.5
+  tol: 1e-7
+  max_cycle: 300
+  diis:
+    diis: True
+    space: 16
+    start_cycle: 6
+    damp: 0.3
+  smearing: 
+    smearing: True
+    method: fermi
+    search:
+      method: newton
+      cycle: 400
+      tol: 1e-6
+  use_jit: True
+  batchsize: 20
+
+# flow parameters
+flow:
+  steps: 1
+  depth: 6
+  h1size: 16
+  h2size: 16
+  Nf: 5
+  remat: True
+
+# van parameters
+van:
+  nlayers: 2
+  modelsize: 16
+  nheads: 4
+  nhidden: 32
+  remat: True
+
+# wfn parameters
+wfn:
+  depth: 3
+  h1size: 32
+  h2size: 16
+  Nf: 5
+  remat: True
+
+# ewald
+ewald:
+  Gmax: 15
+  kappa: 10
+
+# optimizer parameters
+optimizer:
+  flow:
+    type: sr
+    lr: 0.3
+    decay: 0.01
+    damping: 0.001
+    maxnorm: 0.001
+    clip_factor: 5.0
+    sr:
+      alpha: 0.1
+    cg:
+      mode: qr
+      gamma: 0.5
+      init_vec_last_step: False
+      solver:
+        precondition: False
+        maxiter: None
+        tol: 1e-10
+        style: cg
+  van:
+    type: sr
+    lr: 1
+    decay: 0.01
+    damping: 0.001
+    maxnorm: 0.001
+    clip_factor: 5.0
+    sr:
+      alpha: 0.1
+    cg:
+      mode: qr
+      gamma: 0.5
+      init_vec_last_step: False
+      solver:
+        precondition: False
+        maxiter: None
+        tol: 1e-10
+        style: cg
+  wfn:
+    type: sr
+    lr: 1
+    decay: 0.01
+    damping: 0.001
+    maxnorm: 0.001
+    clip_factor: 5.0
+    sr:
+      alpha: 0.1
+    cg:
+      mode: qr
+      gamma: 1
+      init_vec_last_step: False
+      solver:
+        precondition: False
+        maxiter: None
+        tol: 1e-10
+        style: cg
+
+# mc parameters
+mc:
+  therm: 10
+  steps_p: 50
+  steps_e: 1200
+  width_p: 0.04
+  width_e: 0.06
+
+# train parameters
+batchsize: 40
+acc_steps: 4
+epoch: 10000
+
+# other parameters
+hutchinson: False
+
+# random seed
+seed: 42
+
+# save path
+folder: /work/home/ac6g7qiunu/hydrogen/data/twist_train/
+
+# load path
+load:
+load_pretrain:
+  flow:
+  van:
+  wfn:
+
+# note
+note: "first test n32"

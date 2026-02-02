@@ -206,7 +206,7 @@ def plot_data(files: list,
 
         # plot reference automaticaly
         if ref:
-            ref_dir = '/home/lizh/hydrogen/hydrogen/main/analysis/refs/'
+            ref_dir = '/home/user_lizh/private/homefile/hydrogen/hydrogen/main/analysis/refs/'
             for filename in os.listdir(ref_dir):
                 ref_file = os.path.join(ref_dir, filename)
                 ref_df = pd.read_csv(ref_file, delimiter=r"\s+")
@@ -312,7 +312,7 @@ def plot_data(files: list,
         else:
             ax.set_ylim([lower, upper])
         if grid:
-            ax.grid(True)
+            ax.grid(True, linestyle='--', alpha=0.5)
         if log:
             ax.set_xscale('log')
         ax.set_facecolor(facecolor) 

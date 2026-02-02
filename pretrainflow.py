@@ -28,13 +28,13 @@ from src.vmc import sample_s, make_loss_pretrain_flow
 from hqc.pbc.pes import make_pes
 from cfgmanager import save
 
-@hydra.main(version_base=None, config_path="conf/pretrain/flow", config_name="config14")
+@hydra.main(version_base=None, config_path="conf/pretrain/flow", config_name="twist32")
 def main_func(cfg: DictConfig) -> None:    
 
 
     print_logo()
     logger.remove()
-    logger.add(sys.stdout, colorize=True, format="{message}", level="DEBUG")
+    logger.add(sys.stdout, colorize=True, format="{time:YYYY-MM-DD HH:mm:ss} | {elapsed} | {level:<8} | {file}:{line} ({module}.{function}) - {message}", level="DEBUG")
     now = datetime.now()
     current_time_str = now.strftime("%Y-%m-%d_%H:%M:%S")
 
@@ -51,7 +51,7 @@ def main_func(cfg: DictConfig) -> None:
         path = cfg.folder + "n_%d_rs_%g_T_%g_" % (cfg.num, cfg.rs, cfg.T) + cfg.pes.type \
                           + "_st_%d_dp_%d_h1_%d_h2_%d" % (cfg.flow.steps, cfg.flow.depth, cfg.flow.h1size, cfg.flow.h2size) \
                           + "_bs_%d_ap_%d_" %(cfg.batchsize, cfg.acc_steps) + current_time_str
-        if not os.path.isdir(path):
+        if not os.path.isdir(path) and jax.process_index() == 0:
             os.makedirs(path)
             logger.opt(colors=True).info("<green>creat directory:</green> {}", path)
 
@@ -127,6 +127,13 @@ def main_func(cfg: DictConfig) -> None:
 
 
     logger.opt(colors=True).info("<yellow>\n========= Initialize potential energy surface (PES) =========</yellow>")
+    kpt = jnp.array(cfg.kpt) * (2*jnp.pi/L/cfg.rs)
+    if not jnp.allclose(kpt, jnp.array([0., 0., 0.])):
+        cfg.pes.gamma = False
+        logger.opt(colors=True).info("<blue>k-point(fractional):</blue> {}", cfg.kpt)
+        logger.opt(colors=True).info("<blue>k-point(real)):</blue> {}", kpt)
+    else:
+        logger.opt(colors=True).info("<blue>gamma point</blue>")
     if cfg.pes.type == "hf" or cfg.pes.type == "dft":
         pes_novmap = make_pes(cfg.num, L, cfg.rs, cfg.pes.basis, rcut=cfg.pes.rcut, tol=cfg.pes.tol, 
                               max_cycle=cfg.pes.max_cycle, grid_length=cfg.pes.grid_length, diis=cfg.pes.diis.diis, 
@@ -136,7 +143,10 @@ def main_func(cfg: DictConfig) -> None:
                               smearing_sigma=smearing_sigma, search_method=cfg.pes.smearing.search.method, 
                               search_cycle=cfg.pes.smearing.search.cycle, search_tol=cfg.pes.smearing.search.tol,
                               gamma=cfg.pes.gamma, Gmax=cfg.pes.Gmax, kappa=cfg.pes.kappa, mode='dev')
-        pes_novmap_array = lambda xp: jnp.array(pes_novmap(xp))
+        if cfg.pes.gamma:
+            pes_novmap_array = lambda xp: jnp.array(pes_novmap(xp))
+        else:
+            pes_novmap_array = lambda xp: jnp.array(pes_novmap(xp, kpt))
         pes_vmap = jax.vmap(pes_novmap_array)
         batch_num = cfg.batchsize//cfg.pes.batchsize
         if cfg.batchsize % cfg.pes.batchsize != 0:
@@ -267,6 +277,7 @@ def main_func(cfg: DictConfig) -> None:
 
     logger.opt(colors=True).info("<yellow>\n========= Checkpointing =========</yellow>")
     if ckpt_filename is not None:
+        continue_run_therm = False
         logger.opt(colors=True).info("<green>Load checkpoint file:</green> {}", ckpt_filename)
         logger.opt(colors=True).info("<blue>epoch_finished:</blue> {}", epoch_finished)
         ckpt = load_data(ckpt_filename)
@@ -277,22 +288,32 @@ def main_func(cfg: DictConfig) -> None:
         logger.opt(colors=True).info("Successfully load key, s, params_flowc opt_state_flow.")
         if num_hosts > 1:
             keys = jax.random.split(keys[0], (num_hosts, num_devices))
-            if (s.size == num_hosts*num_devices*batch_per_device*cfg.num*cfg.dim):
+            if s.size == num_hosts*num_devices*batch_per_device*cfg.num*cfg.dim:
                 s = jnp.reshape(s, (num_hosts, num_devices, batch_per_device, cfg.num, cfg.dim))
-            else:    
-                keys, subkeys = p_split(keys)
-                s = jax.pmap(jax.random.uniform, static_broadcasted_argnums=(1,2,3,4))(subkeys, (batch_per_device, cfg.num, cfg.dim), 0., L)
-                epoch_finished = 0 
+            elif s.size > num_hosts*num_devices*batch_per_device*cfg.num*cfg.dim:
+                s = jnp.reshape(s, (-1, cfg.num, cfg.dim))[:cfg.batchsize]
+                s = jnp.reshape(s, (num_hosts, num_devices, batch_per_device, cfg.num, cfg.dim))    
+            else:
+                s = jnp.reshape(s, (-1, cfg.num, cfg.dim))
+                s = jnp.tile(s, (cfg.batchsize // s.shape[0] + 1, 1, 1))
+                s = s[:cfg.batchsize]
+                s = jnp.reshape(s, (num_hosts, num_devices, batch_per_device, cfg.num, cfg.dim))
+                continue_run_therm = True
             s = s[jax.process_index()]
             keys = keys[jax.process_index()]
         else:
             keys = jax.random.split(keys[0], num_devices)
-            if (s.size == num_devices*batch_per_device*cfg.num*cfg.dim):
+            if s.size == num_devices*batch_per_device*cfg.num*cfg.dim:
                 s = jnp.reshape(s, (num_devices, batch_per_device, cfg.num, cfg.dim))
-            else:    
-                keys, subkeys = p_split(keys)
-                s = jax.pmap(jax.random.uniform, static_broadcasted_argnums=(1,2,3,4))(subkeys, (batch_per_device, cfg.num, cfg.dim), 0., L)
-                epoch_finished = 0
+            elif s.size > num_devices*batch_per_device*cfg.num*cfg.dim:    
+                s = jnp.reshape(s, (-1, cfg.num, cfg.dim))[:cfg.batchsize]
+                s = jnp.reshape(s, (num_devices, batch_per_device, cfg.num, cfg.dim))
+            else:
+                s = jnp.reshape(s, (-1, cfg.num, cfg.dim))
+                s = jnp.tile(s, (cfg.batchsize // s.shape[0] + 1, 1, 1))
+                s = s[:cfg.batchsize]
+                s = jnp.reshape(s, (num_devices, batch_per_device, cfg.num, cfg.dim))
+                continue_run_therm = True
         s, keys = shard(s), shard(keys)
         logger.opt(colors=True).info("Successfully load key and s.")
         logger.opt(colors=True).info("<blue>s.shape:</blue> {}", s.shape)
@@ -303,6 +324,7 @@ def main_func(cfg: DictConfig) -> None:
         except (NameError, KeyError):
             mc_width_p = cfg.mc_width_p
     else:
+        continue_run_therm = False
         logger.opt(colors=True).info("Initializing key and s...")
         key, key_proton = jax.random.split(key)
         if num_hosts > 1:
@@ -322,7 +344,7 @@ def main_func(cfg: DictConfig) -> None:
         epoch_finished = 0
     
         
-    if epoch_finished == 0:
+    if (epoch_finished == 0) or continue_run_therm:
         logger.opt(colors=True).info("<yellow>\n========= Thermalization =========</yellow>")
         for i in range(cfg.mc_therm):
             logger.opt(colors=True).info("---- thermal step {} ----", i+1)
@@ -391,7 +413,7 @@ def main_func(cfg: DictConfig) -> None:
                               "Sp": 0., "Sp2": 0.,
                               "Se": 0., "Se2": 0.,
                               "convergence": 0.}, num_devices)
-        grad_flow_acc = shard(jax.tree_map(jnp.zeros_like, params_flow)) # check
+        grad_flow_acc = shard(jax.tree_util.tree_map(jnp.zeros_like, params_flow)) # check
         ar_s_acc = shard(jnp.zeros(num_devices))
         for acc in range(cfg.acc_steps):
             keys, s, ar_s = sample_s(keys, logprob_p, force_fn_p, s, params_flow, cfg.mc_steps_p, mc_width_p, L)
@@ -399,7 +421,7 @@ def main_func(cfg: DictConfig) -> None:
             final_step = (acc == cfg.acc_steps - 1)
             params_flow, opt_state_flow, data_acc, grad_flow_acc = update(params_flow, opt_state_flow, s, keys, 
                                                                           data_acc, grad_flow_acc, final_step)
-        data = jax.tree_map(lambda x: x[0], data_acc)
+        data = jax.tree_util.tree_map(lambda x: x[0], data_acc)
         ar_s = ar_s_acc[0] 
         F, F2, E, E2, K, K2, Vep, Vep2, Vee, Vee2, Vpp, Vpp2, \
         P, P2, ep, Sp, Sp2, Se, Se2, convergence = \
@@ -458,7 +480,7 @@ def main_func(cfg: DictConfig) -> None:
             opt_state_flow_ckpt = state_ckpt_fn_flow(opt_state_flow)
             ckpt = {"keys": keys,
                     "s": s,
-                    "params_flow": jax.tree_map(lambda x: x[0], params_flow),
+                    "params_flow": jax.tree_util.tree_map(lambda x: x[0], params_flow),
                     "opt_state_flow": jax.tree_util.tree_map(lambda x: x[0], all_gather(opt_state_flow_ckpt, "p")) 
                                 if opt_state_flow_pmap_axis is not None else opt_state_flow_ckpt, 
                     "mc_width_p": mc_width_p, 

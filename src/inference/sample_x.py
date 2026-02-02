@@ -210,6 +210,7 @@ def sample_sx(files: List[str],
             wfn_h2size = cfg.wfn.h2size
             Gmax = cfg.ewald.Gmax
             kappa = cfg.ewald.kappa
+            kpt = cfg.get('kpt', [0,0,0])
 
         else:
             params = parse_filename(f)
@@ -232,6 +233,7 @@ def sample_sx(files: List[str],
             Gmax = params["Gmax"]
             kappa = params["kappa"]
             basis = 'gth-dzv'
+            kpt = [0,0,0]
 
         if labels is None:
             label = r'$n=%g,rs=%g,T=%g$'%(n,  rs, T)
@@ -241,14 +243,30 @@ def sample_sx(files: List[str],
     
         beta = 157888.088922572/T # inverse temperature in unit of 1/Ry
         smearing_sigma = 1/beta/2 # temperature in Hartree unit
-        kpt = jnp.array([0,0,0])
         L = (4/3*jnp.pi*n)**(1/3)
+        kpt = jnp.array(kpt) * (2*jnp.pi/L/cfg.rs)
         key = jax.random.PRNGKey(42)
+        if not jnp.allclose(kpt, jnp.array([0., 0., 0.])):
+            gamma = False
+        else:
+            gamma = True
 
         # lcao
-        lcao = make_lcao(n, L, rs, basis=basis, grid_length=hf_grid_length, 
-                        smearing=True, smearing_method='fermi', smearing_sigma=smearing_sigma)
-        lcao_orbitals = make_slater(n, L, rs, basis=basis, groundstate=False)
+        _lcao = make_lcao(cfg.num, L, cfg.rs, cfg.lcao.basis, rcut=cfg.lcao.rcut, tol=cfg.lcao.tol,
+                     max_cycle=cfg.lcao.max_cycle, grid_length=cfg.lcao.grid_length, diis=cfg.lcao.diis.diis, 
+                     diis_space=cfg.lcao.diis.space, diis_start_cycle=cfg.lcao.diis.start_cycle, 
+                     diis_damp=cfg.lcao.diis.damp, use_jit=cfg.lcao.use_jit, dft=(cfg.lcao.type=="dft"), 
+                     xc=cfg.lcao.xc, smearing=cfg.lcao.smearing.smearing, smearing_method=cfg.lcao.smearing.method, 
+                     smearing_sigma=smearing_sigma, search_method=cfg.lcao.smearing.search.method, 
+                     search_cycle=cfg.lcao.smearing.search.cycle, search_tol=cfg.lcao.smearing.search.tol,
+                     gamma=gamma)
+        _lcao_orbitals = make_slater(n, L, rs, basis=basis, groundstate=False, gamma=gamma)
+        if gamma:
+            lcao = _lcao
+            lcao_orbitals = _lcao_orbitals
+        else:
+            lcao = lambda s: _lcao(s, kpt)
+            lcao_orbitals = lambda xp, xe, mo_coeff, state_idx: _lcao_orbitals(xp, xe, mo_coeff, kpt, state_idx)
 
         s = jax.random.uniform(key, (n, dim), minval=0., maxval=L)
         mo_coeff, bands, _ = lcao(s)
@@ -291,7 +309,7 @@ def sample_sx(files: List[str],
             return model(x)
         network_wfn = hk.transform(forward_fn)
 
-        logpsi_novmap = make_logpsi(network_wfn, lcao_orbitals, kpt)
+        logpsi_novmap = make_logpsi(network_wfn, lcao_orbitals)
         logpsi2_novmap = make_logpsi2(logpsi_novmap)
         vmap_wfn = partial(jax.vmap, in_axes=(0, None, 0, 0, 0), out_axes=0)
         logpsi2 = vmap_wfn(logpsi2_novmap)
@@ -489,9 +507,9 @@ def sample_sx(files: List[str],
                         "state_idx": state_idx_data,
                         "mo_coeff": mo_coeff_data,
                         "bands": bands_data,
-                        "params_flow": jax.tree_map(lambda x: x[0], params_flow),
-                        "params_van": jax.tree_map(lambda x: x[0], params_van),
-                        "params_wfn": jax.tree_map(lambda x: x[0], params_wfn),
+                        "params_flow": jax.tree_util.tree_map(lambda x: x[0], params_flow),
+                        "params_van": jax.tree_util.tree_map(lambda x: x[0], params_van),
+                        "params_wfn": jax.tree_util.tree_map(lambda x: x[0], params_wfn),
                         "K": K_data,
                         "Vpp": Vpp_data,
                         "Vep": Vep_data,
@@ -734,9 +752,9 @@ def sample_sx(files: List[str],
                         "state_idx": state_idx_data,
                         "mo_coeff": mo_coeff_data,
                         "bands": bands_data,
-                        "params_flow": jax.tree_map(lambda x: x[0], params_flow),
-                        "params_van": jax.tree_map(lambda x: x[0], params_van),
-                        "params_wfn": jax.tree_map(lambda x: x[0], params_wfn),
+                        "params_flow": jax.tree_util.tree_map(lambda x: x[0], params_flow),
+                        "params_van": jax.tree_util.tree_map(lambda x: x[0], params_van),
+                        "params_wfn": jax.tree_util.tree_map(lambda x: x[0], params_wfn),
                         "K": K_data,
                         "Vpp": Vpp_data,
                         "Vep": Vep_data,

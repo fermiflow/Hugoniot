@@ -117,27 +117,57 @@ def sample_flow_s(files,
     if gradient_color:
         colors = gen_gradient_colors(gradient_color_start, gradient_color_end, len(files))
     else:
-        colors = default_colors
+        colors = plt.cm.coolwarm(jnp.linspace(0, 1, len(files)))
+        # colors = default_colors
 
     if labels is not None:
         assert len(labels) == len(files)
 
 
     if savefigname is not None:
-        if not savefigname.endswith('.png') or not savefigname.endswith('.pdf'):
+        # consistent scientific rcParams
+        plt.rcParams.update({
+            'font.family': 'DejaVu Serif',
+            'mathtext.fontset': 'stix',
+            'font.size': 9,
+            'axes.titlesize': 9,
+            'axes.labelsize': 9,
+            'axes.linewidth': 0.8,
+            'lines.linewidth': 1.0,
+            'lines.markersize': 4,
+            'xtick.direction': 'in',
+            'ytick.direction': 'in',
+            'xtick.minor.visible': True,
+            'ytick.minor.visible': True,
+            'xtick.major.size': 3.0,
+            'ytick.major.size': 3.0,
+            'xtick.minor.size': 2.0,
+            'ytick.minor.size': 2.0,
+            'legend.frameon': False,
+        })
+
+        # ensure file extension
+        if not (savefigname.endswith('.png') or savefigname.endswith('.pdf')):
             savefigname += '.png'
-        plt.figure(figsize=figsize, dpi=dpi, facecolor=facecolor)
-        plt.gca().set_facecolor(facecolor)
-        plt.gca().spines['bottom'].set_color(fontcolor)
-        plt.gca().spines['top'].set_color(fontcolor)
-        plt.gca().spines['right'].set_color(fontcolor)
-        plt.gca().spines['left'].set_color(fontcolor)
-        plt.tick_params(axis='both', colors=fontcolor)
-        plt.xlabel("$r(Bohr)$", color=fontcolor)
-        plt.ylabel("g(r)", color=fontcolor)
-        plt.ylim(-0.13, 1.23)
+
+        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize, dpi=dpi, facecolor=facecolor)
+        ax.set_facecolor(facecolor)
+        ax.spines['bottom'].set_color(fontcolor)
+        ax.spines['top'].set_color(fontcolor)
+        ax.spines['right'].set_color(fontcolor)
+        ax.spines['left'].set_color(fontcolor)
+        ax.tick_params(axis='both', colors=fontcolor)
+        ax.set_xlabel(r'$r$ (Bohr)', color=fontcolor)
+        ax.set_ylabel(r'$g(r)$', color=fontcolor)
+        ax.set_ylim(0.0, 1.1)
         if grid:
-            plt.grid(color='gray')
+            ax.grid(which='major', linewidth=0.5, linestyle=':', alpha=0.35)
+            ax.grid(which='minor', linewidth=0.3, linestyle=':', alpha=0.25)
+    else:
+        fig, ax = None, None
+
+    # last plotted line handle for incremental updates
+    line = None
     
     for f in files:     
 
@@ -164,6 +194,9 @@ def sample_flow_s(files,
             flow_depth = params["flow_depth"]
             flow_h1size = params["flow_h1size"]
             flow_h2size = params["flow_h2size"]
+        
+        L = (4/3*jnp.pi*n)**(1/3)
+        ax.set_xlim(0.0, L*rs/2)
 
         if labels is None:
             label = r'$rs=%g,n=%g$'%(rs, n)
@@ -189,7 +222,7 @@ def sample_flow_s(files,
         print(f"{YELLOW}========= Loading checkpoint ========{RESET}")
         # auto load the biggest checkpoint file
         if auto_load:
-            auto_find_f, auto_find_f_batch = find_ckpt_sample(f, mode="s", silent_mode=True)
+            auto_find_f, auto_find_f_batch = find_ckpt_sample(f, mode="sx", silent_mode=True)
             if auto_find_f is not None:
                 ckpt_file = auto_find_f
                 print(f"{GREEN}auto load the biggest ckeckpoint sample file:\n{RESET}File:", ckpt_file)
@@ -220,9 +253,10 @@ def sample_flow_s(files,
             # plotting
             if savefigname is not None:
                 rmesh, gr = get_gr(s_data, s_data, L*rs, bins)
-                line, = plt.plot(rmesh, gr, label=label, color=color) # label+' bs %d' % s_data.shape[0]
-                plt.legend(loc=legend_loc, facecolor=facecolor, edgecolor=fontcolor, labelcolor=fontcolor)
-                plt.savefig(savefigname, dpi=dpi)
+                line, = ax.plot(rmesh, gr, label=label, color=color, linewidth=1.0)
+                # np.savez(f"data/rdf_data_T{cfg.T}.npz", rmesh=rmesh, gr=gr)
+                leg = ax.legend(loc=legend_loc, facecolor=facecolor, edgecolor=fontcolor, fontsize=8, handlelength=1.2, handletextpad=0.6, borderpad=0.2, labelspacing=0.3)
+                fig.savefig(savefigname, dpi=dpi)
                 print(f"{GREEN}save figure to:{RESET}", savefigname)
             
             if auto_save:
@@ -256,9 +290,9 @@ def sample_flow_s(files,
             # plotting
             if savefigname is not None:
                 rmesh, gr = get_gr(s_data, s_data, L*rs, bins)
-                line, = plt.plot(rmesh, gr, label=label, color=color) # label+' bs %d' % s_data.shape[0]
-                plt.legend(loc=legend_loc, facecolor=facecolor, edgecolor=fontcolor, labelcolor=fontcolor)
-                plt.savefig(savefigname, dpi=dpi)
+                line, = ax.plot(rmesh, gr, label=label, color=color, linewidth=1.0)
+                leg = ax.legend(loc=legend_loc, facecolor=facecolor, edgecolor=fontcolor, fontsize=8, handlelength=1.2, handletextpad=0.6, borderpad=0.2, labelspacing=0.3)
+                fig.savefig(savefigname, dpi=dpi)
 
             s, keys = shard(s), shard(keys)
             params_flow = replicate((params_flow), num_devices)
@@ -273,11 +307,15 @@ def sample_flow_s(files,
 
                 # plotting
                 if savefigname is not None:
-                    line.remove()
+                    if line is not None:
+                        try:
+                            line.remove()
+                        except Exception:
+                            pass
                     rmesh, gr = get_gr(s_data, s_data, L*rs, bins)
-                    line, = plt.plot(rmesh, gr, label=label, color=color) # label+' bs %d' % s_data.shape[0]
-                    plt.legend(loc=legend_loc, facecolor=facecolor, edgecolor=fontcolor, labelcolor=fontcolor)
-                    plt.savefig(savefigname, dpi=dpi)
+                    line, = ax.plot(rmesh, gr, label=label, color=color, linewidth=1.0)
+                    leg = ax.legend(loc=legend_loc, facecolor=facecolor, edgecolor=fontcolor, fontsize=8, handlelength=1.2, handletextpad=0.6, borderpad=0.2, labelspacing=0.3)
+                    fig.savefig(savefigname, dpi=dpi)
 
             print(f"{YELLOW}========= Sampling ========{RESET}")
             for step in range(sample_steps):              
@@ -305,21 +343,29 @@ def sample_flow_s(files,
 
                 # plotting
                 if savefigname is not None:
-                    line.remove()
+                    if line is not None:
+                        try:
+                            line.remove()
+                        except Exception:
+                            pass
                     rmesh, gr = get_gr(s_data, s_data, L*rs, bins)
-                    line, = plt.plot(rmesh, gr, label=label, color=color) # label+' bs %d' % s_data.shape[0]
-                    plt.legend(loc=legend_loc, facecolor=facecolor, edgecolor=fontcolor, labelcolor=fontcolor)
-                    plt.savefig(savefigname, dpi=dpi)
+                    line, = ax.plot(rmesh, gr, label=label, color=color, linewidth=1.0)
+                    leg = ax.legend(loc=legend_loc, facecolor=facecolor, edgecolor=fontcolor, fontsize=8, handlelength=1.2, handletextpad=0.6, borderpad=0.2, labelspacing=0.3)
+                    fig.savefig(savefigname, dpi=dpi)
 
             s_data = s_data[:sample_batch]
 
             # plotting
             if savefigname is not None:
-                line.remove()
+                if line is not None:
+                    try:
+                        line.remove()
+                    except Exception:
+                        pass
                 rmesh, gr = get_gr(s_data, s_data, L*rs, bins)
-                line, = plt.plot(rmesh, gr, label=label, color=color) # label+' bs %d' % s_data.shape[0]
-                plt.legend(loc=legend_loc, facecolor=facecolor, edgecolor=fontcolor, labelcolor=fontcolor)
-                plt.savefig(savefigname, dpi=dpi)
+                line, = ax.plot(rmesh, gr, label=label, color=color, linewidth=1.0)
+                leg = ax.legend(loc=legend_loc, facecolor=facecolor, edgecolor=fontcolor, fontsize=8, handlelength=1.2, handletextpad=0.6, borderpad=0.2, labelspacing=0.3)
+                fig.savefig(savefigname, dpi=dpi)
                 print(f"{GREEN}save figure to:{RESET}", savefigname)
 
             if auto_save:

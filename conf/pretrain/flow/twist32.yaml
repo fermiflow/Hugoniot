@@ -1,0 +1,81 @@
+# multihost parameters
+num_hosts: 1
+
+# system parameters
+num: 32
+dim: 3
+rs: 1.86
+T: 10000
+kpt: [0.25, 0.25, 0.25]
+
+# PES parameters
+pes:
+  type: hf
+  gamma: True
+  basis: gth-dzv
+  xc: lda,vwn
+  rcut: 24
+  grid_length: 0.5
+  tol: 1e-7
+  max_cycle: 400
+  diis:
+    diis: True
+    space: 16
+    start_cycle: 6
+    damp: 0.2
+  smearing: 
+    smearing: True
+    method: fermi
+    search:
+      method: newton
+      cycle: 400
+      tol: 1e-7
+  use_jit: True
+  Gmax: 15
+  kappa: 10
+  batchsize: 80
+
+# flow parameters
+flow:
+  steps: 1
+  depth: 6
+  h1size: 16
+  h2size: 16
+  Nf: 5
+  remat: False
+
+# optimizer parameters
+optimizer_flow: sr
+lr_flow: 1.00
+decay_flow: 0.01
+damping_flow: 0.001
+maxnorm_flow: 0.001
+clip_factor: 5.0
+alpha: 0.1
+gamma: 1
+cg:
+  mode: qr
+  init_vec_last_step: False
+  solver:
+    precondition: False
+    maxiter: None
+    tol: 1e-10
+    style: cg
+
+# train parameters
+mc_therm: 0
+mc_width_p: 0.05
+mc_steps_p: 100
+batchsize: 400
+acc_steps: 2
+epoch: 10000
+
+# random seed
+seed: 42
+
+# save path
+folder: "/home/user_lizh/private/datafile/hydrogen/finiteT/pretrain/flow_twist/"
+load: None
+
+# note
+note: "this is a test note."

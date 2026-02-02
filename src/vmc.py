@@ -87,7 +87,7 @@ def make_loss(logprob_p, logprob_e, logpsi, logpsi_grad_laplacian, kappa, G, L, 
 
         K, K2, Vpp, Vpp2, Vep, Vep2, Vee, Vee2, \
         P, P2, E, E2, EP, F, F2, Sp, Sp2, Se, Se2 = \
-        jax.tree_map(lambda x: jax.lax.pmean(x, axis_name="p"), 
+        jax.tree_util.tree_map(lambda x: jax.lax.pmean(x, axis_name="p"), 
                      (kinetic.real.mean(), (kinetic.real**2).mean(),
                       v_pp.mean(), (v_pp**2).mean(), 
                       v_ep.mean(), (v_ep**2).mean(), 
@@ -133,7 +133,7 @@ def make_loss(logprob_p, logprob_e, logpsi, logpsi_grad_laplacian, kappa, G, L, 
             logpsix = logpsi(x, params_wfn, s, state_idx, mo_coeff) # (B,)
 
             tv = jax.lax.pmean(jnp.abs(Eloc - E).mean(), axis_name="p")
-            Eloc_clipped = jnp.clip(Eloc, E - clip_factor_wfn*tv, E + clip_factor_wfn*tv)
+            Eloc_clipped = jnp.clip(Eloc.real, E - clip_factor_wfn*tv, E + clip_factor_wfn*tv)
             gradF = 2 * (logpsix * (Eloc_clipped - E).conj()).real.mean()
             return gradF
 
@@ -177,7 +177,7 @@ def make_loss_sr(logprob_p, logprob_e, logpsi, logpsi_grad_laplacian, kappa, G, 
 
         K, K2, Vpp, Vpp2, Vep, Vep2, Vee, Vee2, \
         P, P2, E, E2, EP, F, F2, Sp, Sp2, Se, Se2 = \
-        jax.tree_map(lambda x: jax.lax.pmean(x, axis_name="p"), 
+        jax.tree_util.tree_map(lambda x: jax.lax.pmean(x, axis_name="p"), 
                      (kinetic.real.mean(), (kinetic.real**2).mean(),
                       v_pp.mean(), (v_pp**2).mean(), 
                       v_ep.mean(), (v_ep**2).mean(), 
@@ -225,7 +225,7 @@ def make_loss_sr(logprob_p, logprob_e, logpsi, logpsi_grad_laplacian, kappa, G, 
             logpsix = logpsi(x, params_wfn, s, state_idx, mo_coeff) # (B,)
 
             tv = jax.lax.pmean(jnp.abs(Eloc - E).mean(), axis_name="p")
-            Eloc_clipped = jnp.clip(Eloc, E - clip_factor*tv, E + clip_factor*tv)
+            Eloc_clipped = jnp.clip(Eloc.real, E - clip_factor*tv, E + clip_factor*tv)
             gradF = 2 * (logpsix * Eloc_clipped.conj()).real.mean()
             wfn_score = 2 * logpsix.real.mean()
             return gradF, wfn_score
@@ -303,7 +303,7 @@ def make_loss_pretrain_flow(logprob_p, pes, L, rs, reciprocal_beta, clip_factor)
 
         F, F2, E, E2, K, K2, Vep, Vep2, Vee, Vee2, Vpp, Vpp2, \
         P, P2, ep, Sp, Sp2, Se, Se2, convergence = \
-            jax.tree_map(lambda x: jax.lax.pmean(x, axis_name="p"), 
+            jax.tree_util.tree_map(lambda x: jax.lax.pmean(x, axis_name="p"), 
                             (Floc.mean(), (Floc**2).mean(), 
                              Eloc.mean(), (Eloc**2).mean(),
                              kinetic.mean(), (kinetic**2).mean(), 
@@ -376,7 +376,7 @@ def make_loss_pretrain_flow_sr(logprob_p, pes, L, rs, reciprocal_beta, clip_fact
 
         F, F2, E, E2, K, K2, Vep, Vep2, Vee, Vee2, Vpp, Vpp2, \
         P, P2, ep, Sp, Sp2, Se, Se2, convergence = \
-            jax.tree_map(lambda x: jax.lax.pmean(x, axis_name="p"), 
+            jax.tree_util.tree_map(lambda x: jax.lax.pmean(x, axis_name="p"), 
                             (Floc.mean(), (Floc**2).mean(), 
                              Eloc.mean(), (Eloc**2).mean(),
                              kinetic.mean(), (kinetic**2).mean(), 

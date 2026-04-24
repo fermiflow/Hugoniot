@@ -13,27 +13,27 @@ kpt: [0.25, 0.25, 0.25]
 # LCAO parameters
 lcao:
   type: hf
-  gamma: False
+  gamma: True
   basis: gth-dzv
   xc: lda,vwn
   rcut: 24
   grid_length: 0.5
   tol: 1e-7
-  max_cycle: 100
+  max_cycle: 400
   diis:
     diis: True
-    space: 8
-    start_cycle: 1
-    damp: 0
+    space: 16
+    start_cycle: 6
+    damp: 0.2
   smearing: 
     smearing: True
     method: fermi
     search:
-      method: newton
-      cycle: 100
-      tol: 1e-7
+      method: bisect
+      cycle: 300
+      tol: 1e-6
   use_jit: True
-  batchsize: 120
+  batchsize: 160
 
 # flow parameters
 flow:
@@ -42,7 +42,7 @@ flow:
   h1size: 16
   h2size: 16
   Nf: 5
-  remat: False
+  remat: True
 
 # van parameters
 van:
@@ -50,7 +50,7 @@ van:
   modelsize: 16
   nheads: 4
   nhidden: 32
-  remat: False
+  remat: True
 
 # wfn parameters
 wfn:
@@ -58,7 +58,7 @@ wfn:
   h1size: 32
   h2size: 16
   Nf: 5
-  remat: False
+  remat: True
 
 # ewald
 ewald:
@@ -124,15 +124,15 @@ optimizer:
 
 # mc parameters
 mc:
-  therm: 1
+  therm: 10
   steps_p: 50
-  steps_e: 400
+  steps_e: 1200
   width_p: 0.05
   width_e: 0.07
 
 # train parameters
-batchsize: 240
-acc_steps: 1
+batchsize: 320
+acc_steps: 4
 epoch: 10000
 
 # other parameters
@@ -145,11 +145,11 @@ seed: 42
 folder: /home/user_lizh/private/datafile/hydrogen/finiteT/twist/
 
 # load path
-load: /home/user_lizh/private/datafile/hydrogen/finiteT/twist/n_32_rs_1.86_T_10000_hf_bs_320_ap_4_2025-10-01_19:26:57/
+load:
 load_pretrain:
-  flow: /home/user_lizh/private/datafile/hydrogen/finiteT/pretrain/flow/n_14_rs_1.86_T_10000_hf_st_1_dp_6_h1_16_h2_16_bs_1024_ap_1_2024-10-30_10:58:32/epoch_002186.pkl
+  flow:
   van:
   wfn:
 
 # note
-note: "test kpt 1"
+note: "first test n32"

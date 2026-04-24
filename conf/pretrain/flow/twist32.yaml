@@ -27,9 +27,9 @@ pes:
     smearing: True
     method: fermi
     search:
-      method: newton
-      cycle: 400
-      tol: 1e-7
+      method: bisect
+      cycle: 300
+      tol: 1e-6
   use_jit: True
   Gmax: 15
   kappa: 10

@@ -1,3 +1,6 @@
 .pytest_cache
 data
 __pycache__
+.vscode
+outputs/
+output/

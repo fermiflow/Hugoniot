@@ -2,10 +2,11 @@
 num_hosts: 1
 
 # system parameters
-num: 24
+num: 54
 dim: 3
-rs: 1.94
+rs: 1.86
 T: 10000
+kpt: [0.25, 0.25, 0.25]
 
 # PES parameters
 pes:
@@ -16,23 +17,23 @@ pes:
   rcut: 24
   grid_length: 0.5
   tol: 1e-7
-  max_cycle: 100
+  max_cycle: 400
   diis:
     diis: True
-    space: 8
-    start_cycle: 1
-    damp: 0
-  smearing: 
+    space: 16
+    start_cycle: 6
+    damp: 0.2
+  smearing:
     smearing: True
     method: fermi
     search:
-      method: newton
-      cycle: 100
-      tol: 1e-7
+      method: bisect
+      cycle: 300
+      tol: 1e-6
   use_jit: True
   Gmax: 15
   kappa: 10
-  batchsize: 128
+  batchsize: 30
 
 # flow parameters
 flow:
@@ -45,7 +46,7 @@ flow:
 
 # optimizer parameters
 optimizer_flow: sr
-lr_flow: 1.00
+lr_flow: 1.0
 decay_flow: 0.01
 damping_flow: 0.001
 maxnorm_flow: 0.001
@@ -58,14 +59,14 @@ cg:
   solver:
     precondition: False
     maxiter: None
-    tol: 1e-10
+    tol: 1.0e-10
     style: cg
 
 # train parameters
 mc_therm: 0
-mc_width_p: 0.03
-mc_steps_p: 200
-batchsize: 512
+mc_width_p: 0.05
+mc_steps_p: 100
+batchsize: 240
 acc_steps: 2
 epoch: 10000
 
@@ -73,8 +74,8 @@ epoch: 10000
 seed: 42
 
 # save path
-folder: "/data/lizh/hydrogen/finiteT/pretrain/flow/"
+folder: "/home/user_lizh/private/datafile/hydrogen/finiteT/pretrain/flow_twist/"
 load: None
 
 # note
-note: "this is a test note."
+note: "this is A800_80G*4 config template."

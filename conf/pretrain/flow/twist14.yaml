@@ -2,38 +2,38 @@
 num_hosts: 1
 
 # system parameters
-num: 32
+num: 14
 dim: 3
 rs: 1.86
 T: 10000
-kpt: [0, 0, 0]
+kpt: [0.25, 0.25, 0.25]
 
 # PES parameters
 pes:
   type: hf
-  gamma: True
+  gamma: False
   basis: gth-dzv
   xc: lda,vwn
   rcut: 24
   grid_length: 0.5
   tol: 1e-7
-  max_cycle: 400
+  max_cycle: 200
   diis:
     diis: True
-    space: 16
-    start_cycle: 6
-    damp: 0.2
+    space: 8
+    start_cycle: 1
+    damp: 0
   smearing: 
     smearing: True
     method: fermi
     search:
       method: bisect
-      cycle: 300
+      cycle: 200
       tol: 1e-6
   use_jit: True
   Gmax: 15
   kappa: 10
-  batchsize: 80
+  batchsize: 256
 
 # flow parameters
 flow:
@@ -64,18 +64,18 @@ cg:
 
 # train parameters
 mc_therm: 0
-mc_width_p: 0.05
-mc_steps_p: 100
-batchsize: 400
-acc_steps: 2
+mc_width_p: 0.03
+mc_steps_p: 200
+batchsize: 1024
+acc_steps: 1
 epoch: 10000
 
 # random seed
 seed: 42
 
 # save path
-folder: "/home/user_lizh/private/datafile/hydrogen/finiteT/pretrain/flow/"
+folder: "/home/user_lizh/private/datafile/hydrogen/finiteT/pretrain/flow_twist/"
 load: None
 
 # note
-note: "this is A800_80G*4 config template."
+note: "this is A800_80G*1 config template."

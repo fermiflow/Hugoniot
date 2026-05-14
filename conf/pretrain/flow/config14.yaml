@@ -4,8 +4,9 @@ num_hosts: 1
 # system parameters
 num: 14
 dim: 3
-rs: 2
+rs: 1.86
 T: 10000
+kpt: [0, 0, 0]
 
 # PES parameters
 pes:
@@ -16,7 +17,7 @@ pes:
   rcut: 24
   grid_length: 0.5
   tol: 1e-7
-  max_cycle: 100
+  max_cycle: 200
   diis:
     diis: True
     space: 8
@@ -26,9 +27,9 @@ pes:
     smearing: True
     method: fermi
     search:
-      method: newton
-      cycle: 100
-      tol: 1e-7
+      method: bisect
+      cycle: 200
+      tol: 1e-6
   use_jit: True
   Gmax: 15
   kappa: 10
@@ -73,8 +74,8 @@ epoch: 10000
 seed: 42
 
 # save path
-folder: "/data/lizh/hydrogen/finiteT/pretrain/flow/"
+folder: "/home/user_lizh/private/datafile/hydrogen/finiteT/pretrain/flow/"
 load: None
 
 # note
-note: "this is a test note."
+note: "this is A800_80G*1 config template."

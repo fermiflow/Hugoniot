@@ -7,4 +7,3 @@ dm-haiku
 optax
 omegaconf
 pandas
-gitpython

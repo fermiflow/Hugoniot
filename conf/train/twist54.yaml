@@ -19,7 +19,7 @@ lcao:
   rcut: 24
   grid_length: 0.5
   tol: 1e-7
-  max_cycle: 300
+  max_cycle: 400
   diis:
     diis: True
     space: 16

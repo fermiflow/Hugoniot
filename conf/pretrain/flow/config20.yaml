@@ -17,7 +17,7 @@ pes:
   rcut: 24
   grid_length: 0.5
   tol: 1e-7
-  max_cycle: 100
+  max_cycle: 200
   diis:
     diis: True
     space: 12

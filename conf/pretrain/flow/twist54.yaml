@@ -28,7 +28,7 @@ pes:
     method: fermi
     search:
       method: bisect
-      cycle: 300
+      cycle: 400
       tol: 1e-6
   use_jit: True
   Gmax: 15

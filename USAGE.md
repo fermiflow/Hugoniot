@@ -58,7 +58,7 @@ python pretrainflow.py num=16 rs=1.86 T=10000 batchsize=256
 **预训练配置文件说明**
 
 | 文件 | 粒子数 | Gamma 点 | GPU 配置 |
-|------|--------|------|----------|----------|
+|------|--------|------|----------|
 | `config14.yaml` | 14 | True | A800_80G x 1 |
 | `twist14.yaml` | 14 | False | A800_80G x 1 |
 | `config20.yaml` | 20 | True | A800_80G x 2 |
@@ -138,7 +138,7 @@ python main.py load=/path/to/checkpoint/directory
 **预训练配置文件说明**
 
 | 文件 | 粒子数 | Gamma 点 | GPU 配置 |
-|------|--------|------|----------|----------|
+|------|--------|------|----------|
 | `config14.yaml` | 14 | True | A800_80G x 2 |
 | `twist14.yaml` | 14 | False | A800_80G x 2 |
 | `config20.yaml` | 20 | True | A800_80G x 4 |

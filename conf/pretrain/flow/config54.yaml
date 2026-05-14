@@ -6,12 +6,12 @@ num: 54
 dim: 3
 rs: 1.86
 T: 10000
-kpt: [0.25, 0.25, 0.25]
+kpt: [0, 0, 0]
 
 # PES parameters
 pes:
   type: hf
-  gamma: False
+  gamma: True
   basis: gth-dzv
   xc: lda,vwn
   rcut: 24
@@ -74,7 +74,7 @@ epoch: 10000
 seed: 42
 
 # save path
-folder: "/home/user_lizh/private/datafile/hydrogen/finiteT/pretrain/flow_twist/"
+folder: "/home/user_lizh/private/datafile/hydrogen/finiteT/pretrain/flow/"
 load: None
 
 # note

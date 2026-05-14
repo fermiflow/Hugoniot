@@ -19,7 +19,7 @@ lcao:
   rcut: 24
   grid_length: 0.5
   tol: 1e-7
-  max_cycle: 100
+  max_cycle: 200
   diis:
     diis: True
     space: 8
@@ -29,11 +29,11 @@ lcao:
     smearing: True
     method: fermi
     search:
-      method: newton
-      cycle: 100
-      tol: 1e-7
+      method: bisect
+      cycle: 200
+      tol: 1e-6
   use_jit: True
-  batchsize: 100
+  batchsize: 240
 
 # flow parameters
 flow:
@@ -127,12 +127,12 @@ mc:
   therm: 5
   steps_p: 100
   steps_e: 800
-  width_p: 0.05
-  width_e: 0.07
+  width_p: 0.04
+  width_e: 0.06
 
 # train parameters
-batchsize: 100
-acc_steps: 1
+batchsize: 480
+acc_steps: 4
 epoch: 10000
 
 # other parameters
@@ -147,9 +147,9 @@ folder: /home/user_lizh/private/datafile/hydrogen/finiteT/twist/
 # load path
 load:
 load_pretrain:
-  flow: /home/user_lizh/private/datafile/hydrogen/finiteT/pretrain/flow/n_14_rs_1.86_T_10000_hf_st_1_dp_6_h1_16_h2_16_bs_1024_ap_1_2024-10-30_10:58:32/epoch_002186.pkl
+  flow: 
   van:
   wfn:
 
 # note
-note: "test kpt 1"
+note: "this is A800_80G*2 config template."

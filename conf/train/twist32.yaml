@@ -13,13 +13,13 @@ kpt: [0.25, 0.25, 0.25]
 # LCAO parameters
 lcao:
   type: hf
-  gamma: True
+  gamma: False
   basis: gth-dzv
   xc: lda,vwn
   rcut: 24
   grid_length: 0.5
   tol: 1e-7
-  max_cycle: 400
+  max_cycle: 300
   diis:
     diis: True
     space: 16
@@ -30,7 +30,7 @@ lcao:
     method: fermi
     search:
       method: bisect
-      cycle: 300
+      cycle: 400
       tol: 1e-6
   use_jit: True
   batchsize: 160
@@ -127,8 +127,8 @@ mc:
   therm: 10
   steps_p: 50
   steps_e: 1200
-  width_p: 0.05
-  width_e: 0.07
+  width_p: 0.04
+  width_e: 0.06
 
 # train parameters
 batchsize: 320
@@ -152,4 +152,4 @@ load_pretrain:
   wfn:
 
 # note
-note: "first test n32"
+note: "this is A800_80G*8 config template."

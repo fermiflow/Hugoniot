@@ -1,5 +1,5 @@
 # multihost parameters
-num_hosts: 1
+num_hosts: 2
 server_addr: 10.1.1.3:9999
 host_idx: 0
 
@@ -8,6 +8,7 @@ num: 32
 dim: 3
 rs: 1.86
 T: 10000
+kpt: [0, 0, 0]
 
 # LCAO parameters
 lcao:
@@ -18,21 +19,21 @@ lcao:
   rcut: 24
   grid_length: 0.5
   tol: 1e-7
-  max_cycle: 100
+  max_cycle: 300
   diis:
     diis: True
-    space: 8
-    start_cycle: 1
-    damp: 0
+    space: 16
+    start_cycle: 6
+    damp: 0.2
   smearing: 
     smearing: True
     method: fermi
     search:
-      method: newton
-      cycle: 100
-      tol: 1e-7
+      method: bisect
+      cycle: 400
+      tol: 1e-6
   use_jit: True
-  batchsize: 20
+  batchsize: 160
 
 # flow parameters
 flow:
@@ -125,13 +126,13 @@ optimizer:
 mc:
   therm: 10
   steps_p: 50
-  steps_e: 1600
-  width_p: 0.07
-  width_e: 0.07
+  steps_e: 1200
+  width_p: 0.04
+  width_e: 0.06
 
 # train parameters
-batchsize: 40
-acc_steps: 1
+batchsize: 320
+acc_steps: 4
 epoch: 10000
 
 # other parameters
@@ -141,7 +142,7 @@ hutchinson: False
 seed: 42
 
 # save path
-folder: /data/lizh/hydrogen/finiteT/final_hf_gth-dzv_cgqr_n20/
+folder: /home/user_lizh/private/datafile/hydrogen/finiteT/pbc/
 
 # load path
 load:
@@ -151,4 +152,4 @@ load_pretrain:
   wfn:
 
 # note
-note: "first test n32"
+note: "this is A800_80G*8 config template."

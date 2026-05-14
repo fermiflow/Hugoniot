@@ -4,15 +4,16 @@ server_addr: 10.1.1.3:9999
 host_idx: 0
 
 # system parameters
-num: 64
+num: 20
 dim: 3
-rs: 2
+rs: 1.86
 T: 10000
+kpt: [0.25, 0.25, 0.25]
 
 # LCAO parameters
 lcao:
   type: hf
-  gamma: True
+  gamma: False
   basis: gth-dzv
   xc: lda,vwn
   rcut: 24
@@ -21,18 +22,18 @@ lcao:
   max_cycle: 100
   diis:
     diis: True
-    space: 8
-    start_cycle: 1
-    damp: 0
+    space: 12
+    start_cycle: 4
+    damp: 0.1
   smearing: 
     smearing: True
     method: fermi
     search:
-      method: newton
-      cycle: 100
-      tol: 1e-7
+      method: bisect
+      cycle: 200
+      tol: 1e-6
   use_jit: True
-  batchsize: 1
+  batchsize: 160
 
 # flow parameters
 flow:
@@ -41,7 +42,7 @@ flow:
   h1size: 16
   h2size: 16
   Nf: 5
-  remat: True
+  remat: False
 
 # van parameters
 van:
@@ -49,7 +50,7 @@ van:
   modelsize: 16
   nheads: 4
   nhidden: 32
-  remat: True
+  remat: False
 
 # wfn parameters
 wfn:
@@ -57,7 +58,7 @@ wfn:
   h1size: 32
   h2size: 16
   Nf: 5
-  remat: True
+  remat: False
 
 # ewald
 ewald:
@@ -67,8 +68,8 @@ ewald:
 # optimizer parameters
 optimizer:
   flow:
-    type: cg
-    lr: 0.1
+    type: sr
+    lr: 0.3
     decay: 0.01
     damping: 0.001
     maxnorm: 0.001
@@ -85,7 +86,7 @@ optimizer:
         tol: 1e-10
         style: cg
   van:
-    type: cg
+    type: sr
     lr: 1
     decay: 0.01
     damping: 0.001
@@ -103,7 +104,7 @@ optimizer:
         tol: 1e-10
         style: cg
   wfn:
-    type: cg
+    type: sr
     lr: 1
     decay: 0.01
     damping: 0.001
@@ -123,15 +124,15 @@ optimizer:
 
 # mc parameters
 mc:
-  therm: 1
-  steps_p: 20
-  steps_e: 400
-  width_p: 0.03
-  width_e: 0.07
+  therm: 5
+  steps_p: 100
+  steps_e: 1000
+  width_p: 0.04
+  width_e: 0.06
 
 # train parameters
-batchsize: 5
-acc_steps: 1
+batchsize: 320
+acc_steps: 8
 epoch: 10000
 
 # other parameters
@@ -141,7 +142,7 @@ hutchinson: False
 seed: 42
 
 # save path
-folder: /data/lizh/hydrogen/finiteT/final_hf_gth-dzv_n32/
+folder: /home/user_lizh/private/datafile/hydrogen/finiteT/pbc/
 
 # load path
 load:
@@ -151,4 +152,4 @@ load_pretrain:
   wfn:
 
 # note
-note: "first test n32"
+note: "this is A800_80G*4 config template."

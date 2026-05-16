@@ -1,7 +1,14 @@
 __pycache__/
-doc/*.aux
-doc/*.dvi
-doc/*.gz
+doc/
+.pytest_cache/
 *.egg-info
 outputs/
 data/
+jax_xc/
+.vscode/
+.claude/
+bench/
+test/*.md
+
+# Basis set raw files (downloaded from external sources)
+hqc/basis/*-raw.dat

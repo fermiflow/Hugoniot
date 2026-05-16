@@ -26,7 +26,7 @@ def make_solver(n: int, L: float, rs: float, basis: str,
                 smearing: bool = False,
                 smearing_method: str = 'fermi',
                 smearing_sigma: float = 0.,
-                search_method: str = 'newton', 
+                search_method: str = 'bisect', 
                 search_cycle: int = 100, 
                 search_tol: float= 1e-7,
                 gamma: bool = True) -> Callable:
@@ -426,61 +426,13 @@ def make_solver(n: int, L: float, rs: float, basis: str,
         # vep matrix
         vep = jnp.einsum('xyz,xyzpq->pq', vlocG_real_image, rhoG)
 
-        # # # eris
-        # # einsum (vmap)
-        # # max batchsize 56 (no jit)
-        # # hf time: 7.2888023853302 (no jit)
-        # # max batchsize 40 (jit)
-        # # hf time: 2.2167017459869385 (jit)
+        # eris calculation
         eris = jnp.einsum('xyz,xyzrs,xyzqp->prsq', VG, rhoG, rhoG)
-
-        # # for x
-        # # max batchsize 68 (no jit)
-        # # hf time: 7.186677932739258 (no jit)
-        # # max batchsize 78 (jit)
-        # # hf time: 4.62881875038147 (jit)
-        # eris = jnp.zeros((n_ao, n_ao, n_ao, n_ao))
-        # for ix in range(n_grid):
-        #     eris += jnp.einsum('yz,yzrs,yzqp->prsq', VG[ix], rhoG[ix], rhoG[ix])
-
-        # # for xy
-        # # max batchsize 68 (no jit)
-        # # hf time: 8.341909408569336 (no jit)
-        # # max batchsize 118 (jit)
-        # # hf time: 13.894800424575806 (jit)
-        # eris = jnp.zeros((n_ao, n_ao, n_ao, n_ao))
-        # for ix in range(n_grid):
-        #     for iy in range(n_grid):
-        #         eris += jnp.einsum('z,zrs,zqp->prsq', VG[ix, iy], rhoG[ix, iy], rhoG[ix, iy])
-        
-        # # # jax.lax.scan
-        # # max batchsize 108 (jit)
-        # # hf time: 11.287713766098022 (jit)
-        # VG1 = VG.reshape(n_grid3)
-        # rhoG = rhoG.reshape(n_grid3, n_ao, n_ao)
-        # eris = jnp.zeros((n_ao, n_ao, n_ao, n_ao))
-        # def body_fun(carry, x):
-        #     carry += jnp.einsum('rs,qp->prsq', x[1], x[1])*x[0]
-        #     return carry, 0
-        # eris, _ = jax.lax.scan(body_fun, eris, xs=[VG1, rhoG], length=n_grid3)
-
-        # jax.lax.scan
-        # max batchsize 108 (jit)
-        # hf time: 11.287713766098022 (jit)
-        # VG1 = VG.reshape(n_grid3)
-        # rhoG = rhoG.reshape(n_grid3, n_ao, n_ao)
-        # eris = jnp.zeros((n_ao, n_ao, n_ao, n_ao))
-        # def body_fun(carry, x):
-        #     carry += jnp.einsum('rs,qp->prsq', x[1], x[1])*x[0]
-        #     return carry, 0
-        # eris, _ = jax.lax.scan(body_fun, eris, xs=[VG1, rhoG], length=n_grid3, unroll=n_grid**2)
-
-        # del rhoG
         eris0 = jnp.einsum('rs,qp->prsq', rhoG0, rhoG0)*4*jnp.pi/L/jnp.linalg.det(cell)**(1/3)*unknown1
 
         return vep, eris, eris0
 
-    def eval_vep_eris_new(xp, pbc_gaussian_power_xyz):
+    def eval_vep_eris_dft(xp, pbc_gaussian_power_xyz):
         """
             Use jax.lax.scan to calculate vep matrix and electron repulsion integrals (eris).
             INPUT:
@@ -563,61 +515,15 @@ def make_solver(n: int, L: float, rs: float, basis: str,
         # vep matrix
         vep = jnp.einsum('xyz,xyzpq->pq', vlocG, rhoG.conjugate())
 
-        # # # eris
-        # # einsum (vmap)
-        # # max batchsize 56 (no jit)
-        # # hf time: 7.2888023853302 (no jit)
-        # # max batchsize 40 (jit)
-        # # hf time: 2.2167017459869385 (jit)
+        # eris calculation
         eris = jnp.einsum('xyz,xyzrs,xyzpq->prsq', VG, rhoG, rhoG.conjugate())
 
-        # # for x
-        # # max batchsize 68 (no jit)
-        # # hf time: 7.186677932739258 (no jit)
-        # # max batchsize 78 (jit)
-        # # hf time: 4.62881875038147 (jit)
-        # eris = jnp.zeros((n_ao, n_ao, n_ao, n_ao))
-        # for ix in range(n_grid):
-        #     eris += jnp.einsum('yz,yzrs,yzqp->prsq', VG[ix], rhoG[ix], rhoG[ix])
-
-        # # for xy
-        # # max batchsize 68 (no jit)
-        # # hf time: 8.341909408569336 (no jit)
-        # # max batchsize 118 (jit)
-        # # hf time: 13.894800424575806 (jit)
-        # eris = jnp.zeros((n_ao, n_ao, n_ao, n_ao))
-        # for ix in range(n_grid):
-        #     for iy in range(n_grid):
-        #         eris += jnp.einsum('z,zrs,zqp->prsq', VG[ix, iy], rhoG[ix, iy], rhoG[ix, iy])
-        
-        # # # jax.lax.scan
-        # # max batchsize 108 (jit)
-        # # hf time: 11.287713766098022 (jit)
-        # VG1 = VG.reshape(n_grid3)
-        # rhoG = rhoG.reshape(n_grid3, n_ao, n_ao)
-        # eris = jnp.zeros((n_ao, n_ao, n_ao, n_ao))
-        # def body_fun(carry, x):
-        #     carry += jnp.einsum('rs,qp->prsq', x[1], x[1])*x[0]
-        #     return carry, 0
-        # eris, _ = jax.lax.scan(body_fun, eris, xs=[VG1, rhoG], length=n_grid3)
-
-        # jax.lax.scan
-        # max batchsize 108 (jit)
-        # hf time: 11.287713766098022 (jit)
-        # VG1 = VG.reshape(n_grid3)
-        # rhoG = rhoG.reshape(n_grid3, n_ao, n_ao)
-        # eris = jnp.zeros((n_ao, n_ao, n_ao, n_ao))
-        # def body_fun(carry, x):
-        #     carry += jnp.einsum('rs,qp->prsq', x[1], x[1])*x[0]
-        #     return carry, 0
-        # eris, _ = jax.lax.scan(body_fun, eris, xs=[VG1, rhoG], length=n_grid3, unroll=n_grid**2)
-
-        # del rhoG
+        # gamma point correction
         eris0 = jnp.einsum('rs,qp->prsq', rhoG0, rhoG0)*4*jnp.pi/L/jnp.linalg.det(cell)**(1/3)*unknown1
 
         return vep, eris, eris0
 
-    def eval_vep_eris_new_kpt(xp, pbc_gaussian_power_xyz):
+    def eval_vep_eris_dft_kpt(xp, pbc_gaussian_power_xyz):
         """
             k-point version.
             Use jax.lax.scan to calculate vep matrix and electron repulsion integrals (eris).
@@ -722,23 +628,41 @@ def make_solver(n: int, L: float, rs: float, basis: str,
         J = jnp.einsum('xyz,xyz,xyzpq->pq', rho, VG, rhoG.conjugate()) # (n_ao, n_ao)
         return J
 
-    def exchange_rhoG(rhoG, mo_coeff):
+    def exchange_rhoG(rhoG, mo_coeff, w1):
         """
-            Exchange matrix.
+            Exchange matrix using rhoG (memory-efficient version for DFT).
+            This function avoids storing the full eris tensor by working directly with rhoG.
+
             Args:
-                eris: array of shape (n_ao, n_ao, n_ao, n_ao), two-electron repulsion integrals.
-                dm: array of shape (n_ao, n_ao), density matrix.
+                rhoG: array of shape (n_grid, n_grid, n_grid, n_ao, n_ao),
+                      density in reciprocal space.
+                mo_coeff: array of shape (n_ao, n_mo), molecular orbital coefficients.
+                w1: array of shape (n_mo,), orbital energies for occupation calculation.
             Returns:
-                exchange matrix: array of shape (n_ao, n_ao)
+                K: array of shape (n_ao, n_ao), exchange matrix.
+
+            Note: This function is currently not used but kept for future hybrid functionals
+                  that require exact exchange (e.g., B3LYP, PBE0).
         """
         unknown1 = 0.22578495
-        # eris0 = jnp.einsum('rs,qp->prsq', rhoG[n_grid//2,n_grid//2,n_grid//2], 
-        #                    rhoG[n_grid//2,n_grid//2,n_grid//2])*4*jnp.pi/L/jnp.linalg.det(cell)**(1/3)*unknown1
-        # eris = jnp.einsum('xyz,xyzrs,xyzqp->prsq', VG, rhoG, rhoG)
-        # K = jnp.einsum('rs,pqsr->pq', dm, eris)
-        rhoG1 = jnp.einsum('xyzrs,sn,nm->xyzrm', rhoG, mo_coeff, jnp.sqrt(dm0))
+
+        # Get occupation numbers
+        occ = occupation(w1)  # (n_mo,)
+        dm_mo = jnp.diag(occ)  # (n_mo, n_mo)
+
+        # Transform rhoG with molecular orbitals and occupation
+        # rhoG1[xyz,r,m] represents the occupied orbital density in reciprocal space
+        rhoG1 = jnp.einsum('xyzrs,sn,nm->xyzrm', rhoG, mo_coeff, jnp.sqrt(dm_mo))
+
+        # Calculate exchange matrix
         K = jnp.einsum('xyzrm,xyzsm,xyz->rs', rhoG1, rhoG1, VG)
-        K0 = jnp.einsum('rm,sm->rs', rhoG1[n_grid//2,n_grid//2,n_grid//2], rhoG1[n_grid//2,n_grid//2,n_grid//2])*4*jnp.pi/L/jnp.linalg.det(cell)**(1/3)*unknown1
+
+        # Gamma point correction
+        K0 = jnp.einsum('rm,sm->rs',
+                        rhoG1[n_grid//2, n_grid//2, n_grid//2],
+                        rhoG1[n_grid//2, n_grid//2, n_grid//2]) * \
+             4*jnp.pi/L/jnp.linalg.det(cell)**(1/3)*unknown1
+
         return K + K0
 
     # DFT functionals
@@ -941,7 +865,7 @@ def make_solver(n: int, L: float, rs: float, basis: str,
 
         # potential (Vep), Hartree & Exchange & correlation integral initialization
         pbc_gaussian_power_xyz = eval_pbc_gaussian_power_x_Rmesh1D(xp) # (n, 3, n_grid_eris, n_all_alpha, n_l)
-        V, rhoG = eval_vep_eris_new(xp, pbc_gaussian_power_xyz) # V (n_ao, n_ao), rhoG (n_grid, n_grid, n_grid, n_ao, n_ao)
+        V, rhoG = eval_vep_eris_dft(xp, pbc_gaussian_power_xyz) # V (n_ao, n_ao), rhoG (n_grid, n_grid, n_grid, n_ao, n_ao)
         ao_Rmesh = eval_pbc_ao_Rmesh(xp) # (n_ao, n_grid3) ao value on real space mesh
         eval_Exc_Vxc = lambda dm: Exc_Vxc_integral(ao_Rmesh, dm)
                                                                                                                                                                                                                                                                                                              
@@ -1005,7 +929,7 @@ def make_solver(n: int, L: float, rs: float, basis: str,
 
         # potential (Vep), Hartree & Exchange & correlation integral initialization
         pbc_gaussian_power_xyz = eval_pbc_gaussian_power_x_kpt_Rmesh1D(xp, kpt) # (n, 3, n_grid_eris, n_all_alpha, n_l)
-        V, rhoG = eval_vep_eris_new_kpt(xp, pbc_gaussian_power_xyz) # V (n_ao, n_ao), rhoG (n_grid, n_grid, n_grid, n_ao, n_ao)
+        V, rhoG = eval_vep_eris_dft_kpt(xp, pbc_gaussian_power_xyz) # V (n_ao, n_ao), rhoG (n_grid, n_grid, n_grid, n_ao, n_ao)
         ao_Rmesh = eval_pbc_ao_kpt_Rmesh(xp, kpt) # (n_ao, n_grid3) ao value on real space mesh
         eval_Exc_Vxc = lambda dm: Exc_Vxc_integral(ao_Rmesh, dm)
                                                                                                                                                                                                                                                                                                              

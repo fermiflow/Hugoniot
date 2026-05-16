@@ -1,18 +1,31 @@
 import os
 import numpy as np
 
+# Basis set directories to search (in order of priority)
+BASIS_DIRS = ['sto', 'pople', 'gth-raw', 'gth-test']
+
 def _find_basis_files(basis):
     """
-        Find basis file in current directory.
+        Find basis file in basis directories.
+        Searches in: sto/, pople/, gth-raw/, gth-test/
         OUTPUT:
-            basis_files: basis file name. (str)
+            basis_file_path: full path to basis file. (str)
     """
     file_name = basis + ".dat"
     current_directory = os.path.abspath(os.path.dirname(__file__))
+
+    # First try direct search in all subdirectories
+    for basis_dir in BASIS_DIRS:
+        basis_path = os.path.join(current_directory, basis_dir, file_name)
+        if os.path.exists(basis_path):
+            return basis_path
+
+    # Fallback: walk through all directories
     for root, dirs, files in os.walk(current_directory):
         for file in files:
             if file == file_name:
                 return os.path.join(root, file)
+
     return None
 
 

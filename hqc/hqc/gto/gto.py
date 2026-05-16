@@ -1,3 +1,10 @@
+"""
+GTO (Gaussian Type Orbital) evaluation for non-periodic systems.
+
+This module handles evaluation of atomic orbitals at specific positions,
+used for wavefunction reconstruction and QMC applications.
+"""
+
 import jax
 import jax.numpy as jnp
 
@@ -14,29 +21,33 @@ coeff_sto6g = jnp.array([[35.52322122, 0.00916359628],
 
 def make_ao(basis):
     """
-        Make gto orbitals function.
-        INPUT:
-            basis: gto basis name, eg:'sto3g'.
-        OUTPUT:
-            eval_gto: gto orbitals function.
+    Make GTO atomic orbital evaluation function.
+
+    Args:
+        basis: str, GTO basis name (e.g., 'sto3g', 'sto6g')
+
+    Returns:
+        eval_gto: function that evaluates GTO orbitals at electron positions
     """
     if basis == 'sto3g':
         coeff = coeff_sto3g
     elif basis == 'sto6g':
         coeff = coeff_sto6g
-     
-    @jax.remat 
+
+    @jax.remat
     def eval_gto(xp, xe):
         """
-            gto orbitals.
-            INPUT:
-                xp: array of shape (n, dim), position of protons.
-                xe: array of shape (dim,), position one electron.
-            OUTPUT:
-                gto: gto orbitals at xe, shape:(n_ao,)
+        Evaluate GTO orbitals at electron position.
+
+        Args:
+            xp: array of shape (n, dim), proton positions
+            xe: array of shape (dim,), single electron position
+
+        Returns:
+            gto: GTO orbital values at xe, shape (n_ao,)
         """
-        r = jnp.sum(jnp.square(xe[None, :] - xp), axis=1) # (n_p,)
-        gto = const * jnp.einsum('i,i,i...->...', coeff[:, 1], jnp.power(coeff[:, 0], 0.75), \
+        r = jnp.sum(jnp.square(xe[None, :] - xp), axis=1)  # (n_p,)
+        gto = const * jnp.einsum('i,i,i...->...', coeff[:, 1], jnp.power(coeff[:, 0], 0.75),
                 jnp.exp(-jnp.einsum('i,...->i...', coeff[:, 0], r))).reshape(-1)  # (n_p,)
         return gto
 

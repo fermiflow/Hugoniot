@@ -31,7 +31,13 @@ def make_occupation_func(n, n_mo, smearing=True, smearing_method='fermi',
                 Output:
                     f: array of shape (n_mo,), Fermi-Dirac distribution f function.
             """
-            return 2/(jnp.exp((w1-mu)/smearing_sigma)+1)
+            # return 2/(jnp.exp((w1-mu)/smearing_sigma)+1)
+            # return jnp.where(
+            #             w1 >= mu,
+            #             2 * jnp.exp(-(w1-mu)/smearing_sigma) / (1 + jnp.exp(-(w1-mu)/smearing_sigma)),
+            #             2/(jnp.exp((w1-mu)/smearing_sigma)+1)
+            #         )
+            return 2/(jnp.exp(jnp.clip((w1-mu)/smearing_sigma, -50, 50))+1)
 
         def gaussian_f_func(mu, w1):
             """
@@ -127,7 +133,7 @@ def make_occupation_func(n, n_mo, smearing=True, smearing_method='fermi',
                     return mu, mu_new, loop+1
                 
                 def cond_fun(carry):
-                    return jnp.abs(carry[1] - carry[0]) > mu_tol
+                    return (jnp.abs(carry[1] - carry[0]) > mu_tol) & (carry[2] < max_cycle)
                     
                 _, mu, _ = jax.lax.while_loop(cond_fun, body_fun, (1., mu_init, 0))
 

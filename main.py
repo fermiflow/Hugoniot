@@ -31,7 +31,7 @@ from src.cg import classical_fisher_cg, quantum_fisher_cg
 
 from hqc.pbc.lcao import make_lcao
 from hqc.pbc.slater import make_slater
-from cfgmanager import save
+from cfgmanager.save import save
 
 @hydra.main(version_base=None, config_path="conf/train", config_name="twist32")
 def main_func(cfg: DictConfig) -> None:

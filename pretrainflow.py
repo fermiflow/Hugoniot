@@ -26,7 +26,7 @@ from src.mcmc import adjust_mc_width
 from src.vmc import sample_s, make_loss_pretrain_flow
 
 from hqc.pbc.pes import make_pes
-from cfgmanager import save
+from cfgmanager.save import save
 
 @hydra.main(version_base=None, config_path="conf/pretrain/flow", config_name="twist32")
 def main_func(cfg: DictConfig) -> None:    

@@ -1,42 +1,64 @@
-from config import *
-from pyscf import gto
-from hqc.gto.ao import make_ao
+"""
+Test GTO integral matrix construction against PySCF.
+"""
 
-def pyscf_eval_ao(xp, xe, basis):
-    n = xp.shape[0]
-    mol = gto.Mole()
-    mol.unit = 'B'
-    for i in range(n):
-        mol.atom.append(['H', tuple(xp[i])])
-    mol.spin = 0
-    mol.basis = basis
-    mol.build()
-    ao_value = mol.eval_ao("GTOval_sph", xe)
-    return ao_value
+import pytest
+import jax
+import jax.numpy as jnp
+import numpy as np
+from pyscf import gto, scf
+from hqc.gto.integral import prepare_basis_data, build_integral_matrices_vec
 
-def test_pbc_ao():
+jax.config.update("jax_enable_x64", True)
 
-	n, dim = 14, 3
-	rs = 1.25
-	L = (4/3*jnp.pi*n)**(1/3)*rs
-	key = jax.random.PRNGKey(42)
-	xp = jax.random.uniform(key, (n, dim), minval=0., maxval=L)
-	key = jax.random.PRNGKey(43)
-	xe = jax.random.uniform(key, (n, dim), minval=0., maxval=L)
 
-	basis_set = ['sto3g', 'sto6g']
-	for basis in basis_set:
+class TestGTOIntegrals:
+    """Test GTO integral matrix construction."""
 
-		# pyscf benchmark
-		pyscf_ao = pyscf_eval_ao(xp, xe, basis)
-		eval_ao = jax.vmap(make_ao(basis), (None, 0), 0)
-		ao = eval_ao(xp, xe)
-		assert np.allclose(pyscf_ao, ao)
+    def test_h2_gth_szv_overlap(self):
+        """Test overlap matrix for H2 molecule with GTH-SZV basis."""
+        # H2 molecule at 1.4 Bohr separation
+        atom_positions = jnp.array([[0.0, 0.0, 0.0], [1.4, 0.0, 0.0]])
+        atom_charges = jnp.array([1.0, 1.0])
 
-		# jit, vmap, test
-		jax.jit(eval_ao)(xp, xe)
-		xe2 = jnp.concatenate([xe, xe]).reshape(2, n, dim)
-		jax.vmap(eval_ao, (None, 0), 0)(xp, xe2)
-		xp2 = jnp.concatenate([xp, xp]).reshape(2, n, dim)
-		jax.vmap(eval_ao, (0, None), 1)(xp2, xe)
-		
+        basis_data = prepare_basis_data(atom_charges, basis='gth-szv')
+        S, T, V, eri = build_integral_matrices_vec(atom_positions, basis_data)
+
+        # Compare with PySCF
+        mol = gto.M(atom='H 0 0 0; H 1.4 0 0', basis='gth-szv', unit='B')
+        S_pyscf = mol.intor('int1e_ovlp')
+
+        print("\nHQC overlap matrix:")
+        print(S)
+        print("\nPySCF overlap matrix:")
+        print(S_pyscf)
+
+        assert S.shape == S_pyscf.shape
+        assert jnp.allclose(S, S_pyscf, atol=1e-6)
+
+    def test_single_h_atom(self):
+        """Test integrals for single H atom."""
+        atom_positions = jnp.array([[0.0, 0.0, 0.0]])
+        atom_charges = jnp.array([1.0])
+
+        basis_data = prepare_basis_data(atom_charges, basis='gth-szv')
+        S, T, V, eri = build_integral_matrices_vec(atom_positions, basis_data)
+
+        # For single atom, overlap diagonal should be normalized to 1
+        print(f"\nS shape: {S.shape}")
+        print(f"S matrix:\n{S}")
+        assert S.shape == (1, 1)
+        assert jnp.abs(S[0, 0] - 1.0) < 1e-10, f"Overlap not normalized: S[0,0] = {S[0,0]}"
+
+        # Kinetic energy should be positive
+        assert T[0, 0] > 0
+
+        # Nuclear attraction should be negative
+        assert V[0, 0] < 0
+
+        # ERI should be positive
+        assert eri[0, 0, 0, 0] > 0
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v", "-s"])

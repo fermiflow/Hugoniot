@@ -1,0 +1,14 @@
+# Include basis set data files
+recursive-include hqc/basis *.dat
+
+# Include documentation
+include README.md
+include LICENSE
+
+# Include configuration files
+include pyproject.toml
+
+# Exclude test files and cache
+recursive-exclude test *
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]

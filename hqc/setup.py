@@ -21,7 +21,7 @@ def hqc_test_suite():
 
 setup(
     name='hqc',
-    version='0.1.11',
+    version='0.1.12',
     description='Quantum chemistry calculations for Hydrogen systems using JAX',
     long_description=long_description,
     long_description_content_type='text/markdown',

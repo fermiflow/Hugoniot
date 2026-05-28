@@ -76,6 +76,7 @@ seed: 42
 # save path
 folder: "/home/user_lizh/private/datafile/hydrogen/finiteT/pretrain/flow/"
 load: None
+load_pkl: None
 
 # note
 note: "this is A800_80G*2 config template."

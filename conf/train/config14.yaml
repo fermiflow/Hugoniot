@@ -146,6 +146,7 @@ folder: /home/user_lizh/private/datafile/hydrogen/finiteT/pbc/
 
 # load path
 load:
+load_pkl:
 load_pretrain:
   flow: 
   van:

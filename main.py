@@ -48,11 +48,23 @@ def main_func(cfg: DictConfig) -> None:
 
 
     logger.opt(colors=True).info("<yellow>========== init path ==========</yellow>")
+    if (cfg.load is not None) and (cfg.load_pkl is not None):
+        raise ValueError("Cannot specify both 'load' and 'load_pkl'. "
+                         "Use 'load' to resume in an existing directory, "
+                         "or 'load_pkl' to start a new run from a checkpoint file.")
+    resume_in_place = False
     if (cfg.load is not None) and os.path.isdir(cfg.load):
         ckpt_filename, epoch_finished = find_ckpt_filename(cfg.load)
+        resume_in_place = ckpt_filename is not None
+    elif cfg.load_pkl is not None:
+        if not os.path.isfile(cfg.load_pkl):
+            raise ValueError("load_pkl must be an existing checkpoint file, got: %s" % cfg.load_pkl)
+        ckpt_filename = cfg.load_pkl
+        epoch_finished = 0
     else:
         ckpt_filename = None
-    if ckpt_filename is not None:
+        epoch_finished = 0
+    if resume_in_place:
         path = cfg.load
         logger.opt(colors=True).info("<green>work in directory:</green> {}", path)
     else:
@@ -67,7 +79,10 @@ def main_func(cfg: DictConfig) -> None:
     alog_filename = os.path.join(path, "alog.log")
     logger.add(alog_filename, format="{time:YYYY-MM-DD HH:mm:ss} | {elapsed} | {level:<8} | {file}:{line} ({module}.{function}) - {message}", colorize=False, level="INFO")
     if ckpt_filename is not None:
-        logger.info("Continue pretraining from checkpoint file: {}", ckpt_filename)
+        if resume_in_place:
+            logger.info("Continue training from checkpoint file: {}", ckpt_filename)
+        else:
+            logger.info("Start training from checkpoint file: {}", ckpt_filename)
     else:
         logger.info("Initiate training")
     logger.info("This is the training script for the hydrogen.")

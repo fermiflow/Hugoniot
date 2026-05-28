@@ -86,7 +86,7 @@ def main_func(cfg: DictConfig) -> None:
     logger.opt(colors=True).info("<yellow>\n========== save config ==========</yellow>")
     save(cfg, path, silent_mode=True)
     cfg_filename = os.path.join(path, "config.yaml")
-    logger.opt(colors=True).info("\n"+OmegaConf.to_yaml(cfg))
+    logger.info("\n{}", OmegaConf.to_yaml(cfg))
     logger.opt(colors=True).info("<green>Save config file:</green> {}", cfg_filename)
 
 
